@@ -76,30 +76,35 @@ void generate_and_solve(World& world, const Function<double, 1>& V) {
   Function<double, 1> phi = FunctionFactory<double, 1>(world).f(guess_function); 
 
   phi.scale(1.0/phi.norm2()); // phi *= 1.0/norm
-  double E = energy(world,phi,V) - DELTA; 
+  double E = energy(world,phi,V); 
 
-  NonlinearSolver solver;
-  char filename[256];
-  snprintf(filename, 256, "phi-%1d.dat", N);
-  plot(filename,phi);
+  NonlinearSolverND<1> solver;
 
-  Function<double, 1> Vphi = V*phi;
-  Vphi.truncate();
-  SeparatedConvolution<double,1> op = BSHOperator<1>(world, sqrt(-2*E), 0.01, 1e-5);  
+  for(int iter = 0; iter <= 20; iter++) {
+    char filename[256];
+    snprintf(filename, 256, "phi-%1d.dat", N);
+    plot(filename,phi);
 
-  Function<double,1> r = phi + 2.0 * op(Vphi); // the residual
-  double err = r.norm2();
+    Function<double, 1> Vphi = V*phi;
+    Vphi.truncate();
+    SeparatedConvolution<double,1> op = BSHOperator<1>(world, sqrt(-2*E), 0.01, 1e-5);  
 
-  phi = phi - r; 
+    Function<double,1> r = phi + 2.0 * op(Vphi); // the residual
+    double err = r.norm2();
 
-  double norm = phi.norm2();
-  phi.scale(1.0/norm);  // phi *= 1.0/norm
-  E = energy(world,phi,V);
+    phi = solver.update(phi, r);
 
-  if (world.rank() == 0)
-      print("energy", E, "norm", norm, "error",err);
+    double norm = phi.norm2();
+    phi.scale(1.0/norm);  // phi *= 1.0/norm
+    E = energy(world,phi,V);
 
-  print("Final energy without shift", E + DELTA);
+    if (world.rank() == 0)
+          print("iteration", iter, "energy", E, "norm", norm, "error",err);
+
+    if (err < 5e-4) break;
+  }
+
+  print("Final energy without shift: ", E + DELTA);
 
 }
 
