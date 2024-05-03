@@ -6,6 +6,7 @@
 #include <madness/mra/nonlinsol.h>
 #include <madness/mra/operator.h>
 #include <madness/tensor/gentensor.h>
+#include <madness/world/world.h>
 #include <madness/world/worldmpi.h>
 #include <madness/tensor/tensor.h>
 #include <vector>
@@ -14,7 +15,7 @@ using namespace madness;
 
 const double L = 10.0; 
 //const double DELTA = 3*L*L/2; // Use this to make fixed-point iteration converge
-const double DELTA = 7.0;
+const double DELTA = 20.0;
 
 // The initial guess wave function
 template <int N>
@@ -67,6 +68,14 @@ double energy(World& world, const Function<double,1>& phi, const Function<double
   return energy;
 }
 
+double diag_matrix(World& world, std::vector<Function<double,1>> x) {
+  Tensor<double> overlap(x.size(), x.size());
+  //overlap(i,j) =
+  Tensor<double> U;
+  Tensor<double> evals;
+  sygvp(world, H, overlap, 1, U, evals);
+  
+}
 
 // function to generate and solve for each energy level
 template <int N>
@@ -103,8 +112,8 @@ Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& 
 
     for (const auto& prev_phi : prev_phi) {
       phi -= inner(prev_phi, phi)*prev_phi;
-
     }
+    phi.scale(1.0/phi.norm2());
 
     phi = solver.update(phi, r);
 
@@ -133,7 +142,7 @@ int main(int argc, char** argv) {
   if (world.rank() == 0) printf("starting at time %.1f\n", wall_time());
 
   const double thresh = 1e-5;
-  constexpr int num_levels = 5; // Number of levels
+  constexpr int num_levels = 10; // Number of levels
 
   // Set the defaults
   FunctionDefaults<1>::set_k(6);        
