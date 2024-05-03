@@ -8,6 +8,7 @@
 #include <madness/tensor/gentensor.h>
 #include <madness/world/worldmpi.h>
 #include <madness/tensor/tensor.h>
+#include <vector>
 
 using namespace madness;
 
@@ -19,7 +20,7 @@ const double DELTA = 7.0;
 template <int N>
 struct GuessFunction {
   double operator()(const Vector<double, 1>& r) const {
-    return exp(-r[0]*r[0])*std::pow(r[0], N) * std::legendre(N, r[0]);
+    return exp(-r[0]*r[0])*std::pow(r[0], N);// * std::legendre(N, r[0]);
     //return exp(-r[0]*r[0])*std::legendrel(N, r[0]);
   }
 };
@@ -69,7 +70,7 @@ double energy(World& world, const Function<double,1>& phi, const Function<double
 
 // function to generate and solve for each energy level
 template <int N>
-Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& V, const Function<double, 1>& prev_phi) {
+Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& V, std::vector<Function<double,1>>& prev_phi) {
   auto guess_function = [](const Vector<double, 1>& r) {
       GuessFunction<N> functor;
       return functor(r);
@@ -97,10 +98,13 @@ Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& 
     Function<double,1> r = phi + 2.0 * op(Vphi); // the residual
     double err = r.norm2();
 
-    // Q = 1 - |phi_0><phi_0|
-    // Q*|Phi> = |Phi> - |phi_0><phi_0|Phi>
+    // Q = 1 - sum(|phi_prev><phi_prev|) = 1 - |phi_0><phi_0| - |phi_1><phi_1| - ...
+    // Q*|Phi> = |Phi> - |phi_0><phi_0|Phi> - |phi_1><phi_1|Phi> - ...
 
-    phi = phi - inner(prev_phi, phi)*prev_phi;
+    for (const auto& prev_phi : prev_phi) {
+      phi -= inner(prev_phi, phi)*prev_phi;
+
+    }
 
     phi = solver.update(phi, r);
 
@@ -115,7 +119,6 @@ Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& 
   }
 
   print("Final energy without shift: ", E + DELTA);
-
   return phi;
 }
 
@@ -142,10 +145,10 @@ int main(int argc, char** argv) {
   plot("potential.dat", V);
 
 
-  Function<double, 1> prev_phi = FunctionFactory<double, 1>(world).f([](const Vector<double, 1>& r) { return 0.0; });
+  std::vector<Function<double, 1>> prev_phi;
   
   for_<num_levels>([&] (auto i) {      
-    prev_phi = generate_and_solve<i.value>(world, V, prev_phi);
+    prev_phi.push_back(generate_and_solve<i.value>(world, V, prev_phi));
   });
 
   
