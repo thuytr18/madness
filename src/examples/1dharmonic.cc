@@ -68,6 +68,7 @@ double energy(World& world, const Function<double,1>& phi, const Function<double
   return energy;
 }
 
+/*
 double diag_matrix(World& world, std::vector<Function<double,1>> x) {
   Tensor<double> overlap(x.size(), x.size());
   //overlap(i,j) =
@@ -75,7 +76,7 @@ double diag_matrix(World& world, std::vector<Function<double,1>> x) {
   Tensor<double> evals;
   sygvp(world, H, overlap, 1, U, evals);
   
-}
+}*/
 
 // function to generate and solve for each energy level
 template <int N>
