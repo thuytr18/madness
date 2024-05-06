@@ -68,15 +68,46 @@ double energy(World& world, const Function<double,1>& phi, const Function<double
   return energy;
 }
 
-/*
-double diag_matrix(World& world, std::vector<Function<double,1>> x) {
+
+double calc_matrix(World& world, const Function<double,1>& phi, const Function<double,1>& V, const Function<double, 1>& x_left, const Function<double, 1>& x_right) {
+  double pot = inner(x_left, V*x_right); // <x_left|V|x_right>
+  double kin = 0.0;
+
+  Derivative<double,1> D = free_space_derivative<double,1>(world, 0);
+  Function<double,1> dx_right = D(x_right);
+  Function<double,1> dx_left = D(x_left);
+  kin += 0.5*inner(dx_left,dx_right);  // (1/2) <dx_left/dx | dx_right/dx>
+
+  double H = kin + pot;
+  return H;
+}
+
+// Calculate the diagonal matrix
+Tensor<double> diag_matrix(World& world, std::vector<Function<double,1>> x, const Function<double,1>& V, const Function<double, 1>& phi) {
+  Tensor<double> H(x.size(), x.size());
+  for (int i = 0; i < x.size(); i++) {
+    for (int j = 0; j < x.size(); j++) {
+      H(i,j) = calc_matrix(world, phi, V, x[i], x[j]);
+    }
+  }
   Tensor<double> overlap(x.size(), x.size());
-  //overlap(i,j) =
+  for (int i = 0; i < x.size(); i++) {
+    for (int j = 0; j < x.size(); j++) {
+      overlap(i,j) = x[i].inner(x[j]); // <x_i|x_j>
+    }
+  } 
+
   Tensor<double> U;
   Tensor<double> evals;
   sygvp(world, H, overlap, 1, U, evals);
-  
-}*/
+
+  Tensor<double>  diag_matrix(x.size(), x.size());
+  diag_matrix.fill(0.0);
+  for (int i = 0; i < x.size(); i++) {
+    diag_matrix(i,i) = evals(i);
+  }
+  return diag_matrix;
+}
 
 // function to generate and solve for each energy level
 template <int N>
@@ -95,7 +126,7 @@ Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& 
 
   NonlinearSolverND<1> solver;
 
-  for(int iter = 0; iter <= 20; iter++) {
+  for(int iter = 0; iter <= 50; iter++) {
     char filename[256];
     //snprintf(filename, 256, "phi-%1d-%1d.dat", N, iter);
     snprintf(filename, 256, "phi-%1d.dat", N);
@@ -133,7 +164,6 @@ Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& 
 }
 
 
-
 int main(int argc, char** argv) {
 
   // Initializing
@@ -161,6 +191,9 @@ int main(int argc, char** argv) {
     prev_phi.push_back(generate_and_solve<i.value>(world, V, prev_phi));
   });
 
+  // Calculate the diagonal matrix
+  Tensor<double> diag = diag_matrix(world, prev_phi, V, prev_phi[0]);
+  std::cout << diag << std::endl;
   
   if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
   finalize();
