@@ -165,7 +165,6 @@ Function<double, 1> generate_and_solve(World& world, const Function<double, 1>& 
 
 
 int main(int argc, char** argv) {
-
   // Initializing
   initialize(argc, argv);
   World world(SafeMPI::COMM_WORLD);
@@ -183,7 +182,6 @@ int main(int argc, char** argv) {
   // Create the initial potential 
   Function<double,1> V = FunctionFactory<double, 1>(world).f(potential);
   plot("potential.dat", V);
-
 
   std::vector<Function<double, 1>> prev_phi;
   
