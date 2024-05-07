@@ -84,12 +84,14 @@ double calc_matrix(World& world, const Function<double,1>& phi, const Function<d
 
 // Calculate the diagonal matrix
 Tensor<double> diag_matrix(World& world, std::vector<Function<double,1>> x, const Function<double,1>& V, const Function<double, 1>& phi) {
+  //calculate the Hamiltonian matrix
   Tensor<double> H(x.size(), x.size());
   for (int i = 0; i < x.size(); i++) {
     for (int j = 0; j < x.size(); j++) {
       H(i,j) = calc_matrix(world, phi, V, x[i], x[j]);
     }
   }
+  //calculate the overlap matrix
   Tensor<double> overlap(x.size(), x.size());
   for (int i = 0; i < x.size(); i++) {
     for (int j = 0; j < x.size(); j++) {
@@ -107,6 +109,44 @@ Tensor<double> diag_matrix(World& world, std::vector<Function<double,1>> x, cons
     diag_matrix(i,i) = evals(i);
   }
   return diag_matrix;
+}
+
+std::vector<Function<double,1>> U_matrix(World& world, std::vector<Function<double,1>> x, const Function<double,1>& V, const Function<double,1>& phi) {
+  // calculate the Hamiltonian matrix
+  Tensor<double> H(x.size(), x.size());
+  for(int i = 0; i < x.size(); i++) {
+    for(int j = 0; j < x.size(); j++) {
+      H(i,j) = calc_matrix(world, phi, V, x[i], x[j]);
+    }
+  }
+  // calculate the overlap matrix
+  Tensor<double> overlap(x.size(), x.size());
+  for(int i = 0; i < x.size(); i++) {
+    for(int j = 0; j < x.size(); j++) {
+      overlap(i,j) = x[i].inner(x[j]); // <x_i|x_j>
+    }
+  }
+
+  Tensor<double> U;
+  Tensor<double> evals;
+  sygvp(world, H, overlap, 1, U, evals);
+
+  // |x> = U|x>
+  std::cout << "debug" << std::endl;
+
+  std::vector<Function<double,1>> y(x.size());
+
+  for (int i = 0; i < x.size(); i++) {
+    for (int j = 0; j < x.size(); j++) {
+      if (!j) {
+        y[i] = U(i, j)*x[j];
+      } else {
+        y[i] = y[i] + U(i, j)*x[j];
+      }
+    }
+  }
+  std::cout << "U matrix: \n" << U << std::endl;
+  return y;
 }
 
 // function to generate and solve for each energy level
@@ -192,6 +232,15 @@ int main(int argc, char** argv) {
   // Calculate the diagonal matrix
   Tensor<double> diag = diag_matrix(world, prev_phi, V, prev_phi[0]);
   std::cout << diag << std::endl;
+
+  // Calculate the U matrix
+  std::vector<Function<double, 1>> y = U_matrix(world, prev_phi, V, prev_phi[0]);
+
+  for_<num_levels>([&] (auto i) {
+    char filename[256];
+    snprintf(filename, 256, "n_phi-%1d.dat", static_cast<int>(i.value));
+    plot(filename, y[i.value]);
+  });
   
   if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
   finalize();
