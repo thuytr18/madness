@@ -132,8 +132,6 @@ std::vector<Function<double,1>> U_matrix(World& world, std::vector<Function<doub
   sygvp(world, H, overlap, 1, U, evals);
 
   // |x> = U|x>
-  std::cout << "debug" << std::endl;
-
   std::vector<Function<double,1>> y(x.size());
 
   for (int i = 0; i < x.size(); i++) {
@@ -145,6 +143,7 @@ std::vector<Function<double,1>> U_matrix(World& world, std::vector<Function<doub
       }
     }
   }
+  
   std::cout << "U matrix: \n" << U << std::endl;
   return y;
 }
@@ -241,7 +240,7 @@ int main(int argc, char** argv) {
     snprintf(filename, 256, "n_phi-%1d.dat", static_cast<int>(i.value));
     plot(filename, y[i.value]);
   });
-  
+
   if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
   finalize();
   return 0;
