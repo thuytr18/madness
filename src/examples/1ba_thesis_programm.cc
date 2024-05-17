@@ -7,10 +7,13 @@
 #include <madness/mra/funcplot.h>
 #include <madness/mra/nonlinsol.h>
 #include <madness/mra/operator.h>
+#include <madness/mra/vmra.h>
 #include <madness/tensor/gentensor.h>
+#include <madness/world/vector.h>
 #include <madness/world/world.h>
 #include <madness/world/worldmpi.h>
 #include <madness/tensor/tensor.h>
+#include <utility>
 #include <vector>
 
 using namespace madness;
@@ -35,6 +38,7 @@ void for_(F func)
 //--------------------------------------------------------------------------------------------------------------------//
 
 constexpr double L = 10.0;  // Length of the 1D cubic cell
+const double DELTA = 20.0;
 
 //--------------------------------------------------------------------------------------------------------------------//
 // Convenience routine for plotting
@@ -46,45 +50,31 @@ void plot(const char* filename, const Function<double,1>& f) {
 }
 //--------------------------------------------------------------------------------------------------------------------//
 
-// The initial guess wave function
-template <int N>
-double guessFunction (const Vector<double, 1>& r) {
-    return exp(-r[0]*r[0])*std::pow(r[0], N);
-}
+template<typename T, std::size_t NDIM>
+class HarmonicGuessFunctor : public FunctionFunctorInterface<T, NDIM> {
+public:
+	HarmonicGuessFunctor();
 
-template<typename T, std::size_t NDIM, int num_guesses>
-class GuessFactory {
+	HarmonicGuessFunctor(const int &order): order(order){
+	}
+	
+	const int order;
 
-    typedef Vector<double, NDIM> coordT; ///< Type of vector holding coordinates
-
-    protected: 
-        World& _world;
-    public:
-
-        explicit GuessFactory(World& world) : 
-            _world(world)  {
-        }
-
-        std::vector<Function<T, NDIM>> create_guesses() {
-            std::vector<Function<T, NDIM>> guesses;
-            for_<num_guesses>([&](auto i) {
-                Function<double, NDIM> guess_function = FunctionFactory<T, NDIM>(_world).f(&guessFunction<i.value>);  // create guess function
-                guesses.push_back(guess_function); // add guess function to list
-            });
-            return guesses; // return list of guess functions
-        }
+	/// explicit construction
+	double operator ()(const Vector<T, NDIM>& r) const {
+        return exp(-r[0]*r[0])*std::pow(r[0], order);
+    }
 };
 
 // Function to create guesses
-template<typename T, std::size_t NDIM, int N, int M>
-std::vector<Function<T, NDIM>> create_guesses(World& world) {
+template<typename T, std::size_t NDIM>
+std::vector<Function<T, NDIM>> create_guesses(World& world, int num) {
     std::vector<Function<T, NDIM>> guesses;
-    constexpr int num = N + M;
-    for_<num>([&](auto i) {
-        Function<double, NDIM> guess_function = FunctionFactory<T, NDIM>(world).f(&guessFunction<i.value>);  // create guess function
+    for(int i = 0; i < num; i++) {
+        HarmonicGuessFunctor<T, NDIM> guessfunction(i);
+        Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
         guesses.push_back(guess_function); // add guess function to list
-    });
-
+    }
     return guesses; // return list of guess functions
 }
 
@@ -115,6 +105,7 @@ template <typename T, std::size_t NDIM>
 Tensor<T> calculate_Overlap(World &world, const std::vector<Function<T, NDIM>>& guesses) {
     const int num = guesses.size();
     Tensor<T> overlap(num, num); // Overlap matrix
+    overlap = matrix_inner(world, guesses, guesses);
 
     for(int i = 0; i < num; i++) {
         for(int j = 0; j < num; j++) {
@@ -146,30 +137,36 @@ Tensor<T> calculate_DiagonalMatrix(World &world, const std::vector<Function<T, N
 
 // Function to calculate the U matrix
 template <typename T, std::size_t NDIM>
-Tensor<T> calculate_UMatrix(World &world, const std::vector<Function<T, NDIM>>& guesses, const Function<T, NDIM>& V, int N) {
+std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> calculate_UMatrix(World &world, const std::vector<Function<T, NDIM>>& guesses, const Function<T, NDIM>& V, int N) {
     Tensor<T> H = calculate_Hamiltonian(world, guesses,V);
     Tensor<T> overlap = calculate_Overlap(world, guesses);
 
-    Tensor<double> U;
-    Tensor<double> evals;
+    Tensor<T> U;
+    Tensor<T> evals;
     sygvp(world, H, overlap, 1, U, evals);
 
     // |x> = U|x>
-    std::vector<Function<double,1>> y(N);
+    std::vector<Function<T, NDIM>> y(N);
 
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-        if (!j) {
-            y[i] = U(i, j)*guesses[j];
-        } else {
-            y[i] = y[i] + U(i, j)*guesses[j];
-        }
-        }
-    }
+    // to do: clean
+    auto y_2 = transform(world, guesses, U);
+    auto H_1 = calculate_Hamiltonian(world, y,V);
+    auto H_2 = calculate_Hamiltonian(world, y_2,V);
+
+    auto S = matrix_inner(world, y_2, y);
     
+    std::cout << "S matrix: \n" << S << std::endl;
     std::cout << "U matrix: \n" << U << std::endl;
-    return y;
+    std::cout << "H1 matrix: \n" << H_1 << std::endl;
+    std::cout << "H2 matrix: \n" << H_2 << std::endl;
+    std::cout << "evals: \n" << evals << std::endl;
+    return std::make_pair(evals, y);
 }
+
+double potential(const Vector<double,1>& r) {
+  return 0.5*(r[0]*r[0]) - DELTA; 
+}
+
 
 
 int main(int argc, char** argv) {
@@ -187,7 +184,12 @@ int main(int argc, char** argv) {
     FunctionDefaults<1>::set_thresh(thresh);
     FunctionDefaults<1>::set_cubic_cell(-L, L);  // 1D cubic cell
 
-    std::vector<Function<double,1>> guesses = create_guesses<double, 1, 5, 5>(world);
+    std::vector<Function<double,1>> guesses = create_guesses<double, 1>(world, 10);
+     // Create the initial potential 
+  Function<double,1> V = FunctionFactory<double, 1>(world).f(potential);
+
+    auto tmp = calculate_UMatrix(world, guesses, V, 5);
+    auto evals = tmp.first;
 
     // Plotting the guesses -----------------------------------------------
     for(int i = 0; i < guesses.size(); i++) {

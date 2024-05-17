@@ -134,15 +134,7 @@ std::vector<Function<double,1>> U_matrix(World& world, std::vector<Function<doub
   // |x> = U|x>
   std::vector<Function<double,1>> y(x.size());
 
-  for (int i = 0; i < x.size(); i++) {
-    for (int j = 0; j < x.size(); j++) {
-      if (!j) {
-        y[i] = U(i, j)*x[j];
-      } else {
-        y[i] = y[i] + U(i, j)*x[j];
-      }
-    }
-  }
+  y = transform(world, x, U);
   
   std::cout << "U matrix: \n" << U << std::endl;
   return y;
