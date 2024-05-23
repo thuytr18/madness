@@ -266,7 +266,7 @@ int main(int argc, char** argv) {
     startup(world,argc,argv);
     if (world.rank() == 0) printf("starting at time %.1f\n", wall_time());
 
-    const double thresh = 1e-5; // Threshold
+    const double thresh = 1e-6; // Threshold
     constexpr int num_levels = 10; // Number of levels
 
     // Set the defaults
