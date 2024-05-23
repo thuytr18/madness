@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
   if (world.rank() == 0) printf("starting at time %.1f\n", wall_time());
 
   const double thresh = 1e-5;
-  constexpr int num_levels = 10; // Number of levels
+  constexpr int num_levels = 5; // Number of levels
 
   // Set the defaults
   FunctionDefaults<1>::set_k(6);        
