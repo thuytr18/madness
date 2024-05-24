@@ -157,17 +157,19 @@ double energy(World& world, const Function<T, NDIM>& phi, const Function<T, NDIM
 
 // Function to calculate the Hamiltonian matrix, Overlap matrix and Diagonal matrix
 template <typename T, std::size_t NDIM>
-void diagonalize(World &world, const std::vector<Function<T, NDIM>>& guesses, const Function<T, NDIM>& V, Tensor<T>& H, Tensor<T>& overlap, Tensor<T>& diag_matrix){
+std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, const std::vector<Function<T, NDIM>>& guesses, const Function<T, NDIM>& V){
     const int num = guesses.size();
     
-    H = Tensor<T>(num, num); // Hamiltonian matrix
-    overlap = Tensor<T>(num, num); // Overlap matrix
-    diag_matrix = Tensor<T>(num, num); // Diagonal matrix
+    auto H = Tensor<T>(num, num); // Hamiltonian matrix
+    auto overlap = Tensor<T>(num, num); // Overlap matrix
+    auto diag_matrix = Tensor<T>(num, num); // Diagonal matrix
 
     // Calculate the Hamiltonian matrix
     Derivative<double,1> D = free_space_derivative<double,1>(world, 0); // Derivative operator
 
     for(int i = 0; i < num; i++) {
+        auto energy1 = energy(world, guesses[i], V);
+        std::cout << energy1 << std::endl;
         for(int j = 0; j < num; j++) {
             Function<T, NDIM> dx_i = D(guesses[i]);
             Function<T, NDIM> dx_j = D(guesses[j]);
@@ -178,6 +180,7 @@ void diagonalize(World &world, const std::vector<Function<T, NDIM>>& guesses, co
             H(i, j) = kin_energy + pot_energy; // Hamiltonian matrix
         }
     }
+    std::cout << "H: \n" << H << std::endl;
 
     // Calculate the Overlap matrix
     overlap = matrix_inner(world, guesses, guesses);
@@ -191,28 +194,10 @@ void diagonalize(World &world, const std::vector<Function<T, NDIM>>& guesses, co
     for(int i = 0; i < num; i++) {
         diag_matrix(i, i) = evals(i); // Set the diagonal elements
     }
-}
 
+    std::cout << "dia_matrix: \n" << diag_matrix << std::endl;
 
-// Function to calculate the U matrix
-template <typename T, std::size_t NDIM>
-std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> U_Matrix(World &world, const std::vector<Function<T, NDIM>>& guesses, const Function<T, NDIM>& V, int N) {
-    Tensor<T> H;
-    Tensor<T> overlap;
-    Tensor<T> diag_matrix;
-
-    diagonalize(world, guesses, V, H, overlap, diag_matrix);
-
-    // std::cout << "H matrix: \n" << H << std::endl;
-    // std::cout << "overlap matrix: \n" << overlap << std::endl;
-    // std::cout << "diag matrix: \n" << diag_matrix << std::endl;
-
-    Tensor<T> U;
-    Tensor<T> evals;
-    sygvp(world, H, overlap, 1, U, evals);
-
-    // |y> = U|x>
-    std::vector<Function<T, NDIM>> y(N);
+    std::vector<Function<T, NDIM>> y;
 
     y = transform(world, guesses, U);
     
@@ -279,7 +264,7 @@ int main(int argc, char** argv) {
     if (world.rank() == 0) printf("starting at time %.1f\n", wall_time());
 
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 10; // Number of levels
+    constexpr int num_levels = 5; // Number of levels
 
     // Set the defaults
     FunctionDefaults<1>::set_k(6);        
@@ -296,7 +281,7 @@ int main(int argc, char** argv) {
     Function<double, 1> V = potential_generator.create_potential(DELTA);
 
     // Plot the potential
-    plot("potential.dat", V);
+    plot("potential.dat", V + DELTA);
 
     // Plot guesses
     for (int i = 0; i < guesses.size(); i++) {
@@ -313,15 +298,9 @@ int main(int argc, char** argv) {
         eigenfunctions.push_back(phi);
     }
 
-    // Calculate the diagonal matrix
-    Tensor<double> diag_matrix;
-    Tensor<double> H;
-    Tensor<double> overlap;
-    diagonalize(world, eigenfunctions, V, H, overlap, diag_matrix);
 
-    std::cout << diag_matrix << std::endl;
 
-    std::pair<Tensor<double>, std::vector<Function<double, 1>>> tmp = U_Matrix(world, guesses, V, 5);
+    std::pair<Tensor<double>, std::vector<Function<double, 1>>> tmp = diagonalize(world, eigenfunctions, V);
     std::vector<Function<double, 1>> y = tmp.second;
     //auto evals = tmp.first;
 
