@@ -39,15 +39,27 @@ void for_(F func)
 //--------------------------------------------------------------------------------------------------------------------//
 
 const double L = 10.0;  // Length of the 1D cubic cell
-const double DELTA = 40.0;
+const double DELTA = 20.0;
 
 //--------------------------------------------------------------------------------------------------------------------//
 // Convenience routine for plotting
+/*
 void plot(const char* filename, const Function<double,1>& f) {
   Vector<double,1>lo(0.0), hi(0.0);
   lo[0] = -L;
   hi[0] = L;
   plot_line(filename,401,lo,hi,f);
+}
+*/
+
+template <typename T, std::size_t NDIM>
+void plot(const char* filename, const Function<T, NDIM>& f) {
+    Vector<T, NDIM> lo{}, hi{};
+    for (std::size_t i = 0; i < NDIM; ++i) {
+        lo[i] = -L;
+        hi[i] = L;
+    }
+    plot_line(filename, 401, lo, hi, f);
 }
 //--------------------------------------------------------------------------------------------------------------------//
 
@@ -224,12 +236,12 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
 
     for(int iter = 0; iter <= 50; iter++) {
         char filename[256];
-        snprintf(filename, 256, "phi-%1d-%1d.dat", N, iter);
+        snprintf(filename, 256, "phi-%1d.dat", N);
         plot(filename,phi);
 
         Function<T, NDIM> Vphi = V*phi;
         Vphi.truncate();
-        SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.01, 1e-5);  
+        SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.01, 1e-7);  
 
         Function<T, NDIM> r = phi + 2.0 * op(Vphi); // the residual
         T err = r.norm2();
