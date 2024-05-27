@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <madness/mra/funcdefaults.h>
@@ -157,25 +158,25 @@ double energy(World& world, const Function<T, NDIM>& phi, const Function<T, NDIM
 
 // Function to calculate the Hamiltonian matrix, Overlap matrix and Diagonal matrix
 template <typename T, std::size_t NDIM>
-std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, const std::vector<Function<T, NDIM>>& guesses, const Function<T, NDIM>& V){
-    const int num = guesses.size();
+std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& V){
+    const int num = functions.size();
     
     auto H = Tensor<T>(num, num); // Hamiltonian matrix
     auto overlap = Tensor<T>(num, num); // Overlap matrix
     auto diag_matrix = Tensor<T>(num, num); // Diagonal matrix
 
     // Calculate the Hamiltonian matrix
-    Derivative<double,1> D = free_space_derivative<double,1>(world, 0); // Derivative operator
+    Derivative<T, NDIM> D = free_space_derivative<T,NDIM>(world, 0); // Derivative operator
 
     for(int i = 0; i < num; i++) {
-        auto energy1 = energy(world, guesses[i], V);
+        auto energy1 = energy(world, functions[i], V);
         std::cout << energy1 << std::endl;
         for(int j = 0; j < num; j++) {
-            Function<T, NDIM> dx_i = D(guesses[i]);
-            Function<T, NDIM> dx_j = D(guesses[j]);
+            Function<T, NDIM> dx_i = D(functions[i]);
+            Function<T, NDIM> dx_j = D(functions[j]);
 
             double kin_energy = 0.5 * inner(dx_i, dx_j);  // (1/2) <dphi/dx | dphi/dx>
-            double pot_energy = inner(guesses[i], V * guesses[j]); // <phi|V|phi>
+            double pot_energy = inner(functions[i], V * functions[j]); // <phi|V|phi>
 
             H(i, j) = kin_energy + pot_energy; // Hamiltonian matrix
         }
@@ -183,7 +184,7 @@ std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, c
     std::cout << "H: \n" << H << std::endl;
 
     // Calculate the Overlap matrix
-    overlap = matrix_inner(world, guesses, guesses);
+    overlap = matrix_inner(world, functions, functions);
 
     // Calculate the Diagonal matrix
     Tensor<T> U;
@@ -199,7 +200,7 @@ std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, c
 
     std::vector<Function<T, NDIM>> y;
 
-    y = transform(world, guesses, U);
+    y = transform(world, functions, U);
     
     // std::cout << "U matrix: \n" << U << std::endl;
     // std::cout << "evals: \n" << evals << std::endl;
@@ -217,7 +218,7 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
     phi.scale(1.0/phi.norm2()); // phi *= 1.0/norm
     double E = energy(world, phi, V);
 
-    NonlinearSolverND<1> solver;
+    NonlinearSolverND<NDIM> solver;
 
     for(int iter = 0; iter <= 50; iter++) {
         char filename[256];
@@ -264,7 +265,7 @@ int main(int argc, char** argv) {
     if (world.rank() == 0) printf("starting at time %.1f\n", wall_time());
 
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 5; // Number of levels
+    constexpr int num_levels = 10; // Number of levels
 
     // Set the defaults
     FunctionDefaults<1>::set_k(6);        
@@ -298,16 +299,23 @@ int main(int argc, char** argv) {
         eigenfunctions.push_back(phi);
     }
 
-
-
     std::pair<Tensor<double>, std::vector<Function<double, 1>>> tmp = diagonalize(world, eigenfunctions, V);
     std::vector<Function<double, 1>> y = tmp.second;
     //auto evals = tmp.first;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < num_levels; i++) {
         char filename[256];
-        snprintf(filename, 256, "n_phi-%1d.dat", i);
-        plot(filename, y[i]);
+        snprintf(filename, 256, "Psi_%1d.dat", i);
+        double en = energy(world, y[i], V);
+
+        // for hamonic oscillator
+        // V(r) = 0.5 * r * r = E
+        // inverse function: r = sqrt(2 * E)
+        if(y[i](std::sqrt(2* (en+DELTA))) < 0) {
+            y[i] *= -1;
+        }
+
+        plot(filename, 0.75*y[i] + DELTA + en);
     }
 
     // Finalizing
