@@ -1,7 +1,7 @@
 # src/bachelorthesis
 
 set(EXAMPLE_SOURCES
-    1dharmonic 1ba_thesis_programm)
+    1dharmonic wavefunctions)
  
 if(LIBXC_FOUND)
   list(APPEND EXAMPLE_SOURCES hefxc)
