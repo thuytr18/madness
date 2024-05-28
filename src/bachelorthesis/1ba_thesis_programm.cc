@@ -39,22 +39,13 @@ void for_(F func)
 }
 //--------------------------------------------------------------------------------------------------------------------//
 
-const double L = 10.0;  // Length of the 1D cubic cell
+const double L = 5.0;  // Length of the 1D cubic cell
 const double DELTA = 20.0;
 
 //--------------------------------------------------------------------------------------------------------------------//
 // Convenience routine for plotting
-/*
-void plot(const char* filename, const Function<double,1>& f) {
-  Vector<double,1>lo(0.0), hi(0.0);
-  lo[0] = -L;
-  hi[0] = L;
-  plot_line(filename,401,lo,hi,f);
-}
-*/
-
 template <typename T, std::size_t NDIM>
-void plot(const char* filename, const Function<T, NDIM>& f) {
+void plot1D(const char* filename, const Function<T, NDIM>& f) {
     Vector<T, NDIM> lo{}, hi{};
     for (std::size_t i = 0; i < NDIM; ++i) {
         lo[i] = -L;
@@ -62,6 +53,54 @@ void plot(const char* filename, const Function<T, NDIM>& f) {
     }
     plot_line(filename, 401, lo, hi, f);
 }
+
+/// The ordinate is distance from lo
+template <typename T, std::size_t NDIM>
+void plot_area(const char* filename, int npt, const Vector<double,NDIM>& topleft, const Vector<double,NDIM>& topright, const Vector<double, NDIM> bottomleft, 
+                const Function<T,NDIM>& f) {
+    Vector<double,NDIM> h = 1/double(npt-1) * (topright - topleft);
+    Vector<double, NDIM> v = 1/double(npt-1) * (bottomleft - topleft);
+
+    double step_h = 0.0;
+    for (std::size_t i=0; i<NDIM; ++i) step_h += h[i]*h[i];
+    step_h = sqrt(step_h);
+
+    double step_v = 0.0;
+    for (std::size_t j=0; j<NDIM; ++j) step_v += v[j]*v[j];
+    step_v = sqrt(step_v);
+
+    World& world = f.world();
+    f.reconstruct();
+    if (world.rank() == 0) {
+        FILE* file = fopen(filename,"w");
+    if(!file)
+        MADNESS_EXCEPTION("plot_line: failed to open the plot file", 0);
+        for (int i = 0; i < npt; ++i) {
+            for (int j = 0; j < npt; ++j) {
+                Vector<double,NDIM> sample_point = topleft + h*double(i) + v*double(j);
+                fprintf(file, "%.14e ", i*step_h);
+                fprintf(file, "%.14e ", j*step_v);
+                plot_line_print_value(file, f.eval(sample_point));
+                fprintf(file,"\n");
+            }
+        }
+        fclose(file);
+    }
+    world.gop.fence();
+}
+
+template <typename T, std::size_t NDIM>
+void plot2D(const char* filename, const Function<T, NDIM>& f) {
+    Vector<T, NDIM> topleft{}, topright{}, bottomleft{};
+    topleft[0] = -L;
+    topleft[1] = -L;
+    topright[0] = L;
+    topright[1] = -L;
+    bottomleft[0] = -L;
+    bottomleft[1] = L;
+    plot_area(filename, 100, topleft, topright, bottomleft, f);
+}
+
 //--------------------------------------------------------------------------------------------------------------------//
 
 //--------------------------------------------------------------------------------------------------------------------//
@@ -221,9 +260,9 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
     NonlinearSolverND<NDIM> solver;
 
     for(int iter = 0; iter <= 50; iter++) {
-        char filename[256];
-        snprintf(filename, 256, "phi-%1d.dat", N);
-        plot(filename,phi);
+        //char filename[256];
+        //snprintf(filename, 256, "phi-%1d.dat", N);
+        //plot(filename,phi);
 
         Function<T, NDIM> Vphi = V*phi;
         Vphi.truncate();
@@ -268,6 +307,7 @@ int main(int argc, char** argv) {
     constexpr int num_levels = 10; // Number of levels
 
     // Set the defaults
+    // For 2D: Change the number of dimensions to 2
     FunctionDefaults<1>::set_k(6);        
     FunctionDefaults<1>::set_thresh(thresh);
     FunctionDefaults<1>::set_cubic_cell(-L, L);  // 1D cubic cell
@@ -282,14 +322,16 @@ int main(int argc, char** argv) {
     Function<double, 1> V = potential_generator.create_potential(DELTA);
 
     // Plot the potential
-    plot("potential.dat", V + DELTA);
+    plot1D("potential.dat", V + DELTA);
 
     // Plot guesses
+    /*
     for (int i = 0; i < guesses.size(); i++) {
         char filename[512];
         snprintf(filename, 512, "g-%1d.dat", i);
         plot(filename, guesses[i]);
     }
+    */
 
     // Solve for each energy level and store the eigenfunctions
     std::vector<Function<double, 1>> eigenfunctions;
@@ -315,7 +357,7 @@ int main(int argc, char** argv) {
             y[i] *= -1;
         }
 
-        plot(filename, 0.75*y[i] + DELTA + en);
+        plot1D(filename, 0.75*y[i] + DELTA + en);
     }
 
     // Finalizing
