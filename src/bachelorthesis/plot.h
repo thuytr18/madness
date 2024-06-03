@@ -62,7 +62,7 @@ void plot2D(const char* filename, const Function<T, NDIM>& f) {
     topright[1] = -L;
     bottomleft[0] = -L;
     bottomleft[1] = L;
-    plot_area(filename, 100, topleft, topright, bottomleft, f);
+    plot_area(filename, 401, topleft, topright, bottomleft, f);
 }
 
 //--------------------------------------------------------------------------------------------------------------------//

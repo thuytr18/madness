@@ -104,9 +104,10 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
     NonlinearSolverND<NDIM> solver;
 
     for(int iter = 0; iter <= 50; iter++) {
-        char filename[256];
-        snprintf(filename, 256, "phi-%1d.dat", N);
-        plot1D(filename,phi);
+        //char filename[256];
+        //snprintf(filename, 256, "phi-%1d.dat", N);
+        //plot1D(filename,phi);
+        
 
         Function<T, NDIM> Vphi = V*phi;
         Vphi.truncate();
@@ -135,6 +136,14 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
         if (err < 5e-4) break;
     }
 
+    char filename[256];
+    snprintf(filename, 256, "phi-%1d.dat", N);
+
+    if (NDIM == 1)
+        plot1D(filename, phi + DELTA);
+    else if (NDIM == 2)
+        plot2D(filename,phi);
+
     print("Final energy without shift: ", E + DELTA);
     return phi;
 }
@@ -148,7 +157,7 @@ int main(int argc, char** argv) {
     if (world.rank() == 0) printf("starting at time %.1f\n", wall_time());
 
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 5; // Number of levels
+    constexpr int num_levels = 3; // Number of levels
     constexpr int NDIM = 1;
 
     // Set the defaults
@@ -156,53 +165,82 @@ int main(int argc, char** argv) {
     FunctionDefaults<NDIM>::set_thresh(thresh);
     FunctionDefaults<NDIM>::set_cubic_cell(-L, L);  // 1D cubic cell
 
-    // Create the guess generator and potential generator
+    // Create the potential generator
 
-    HarmonicGuessGenerator<double, NDIM> guess_generator(world);
     //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);
     GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);
+    
+    //Function<double, NDIM> V = potential_generator.create_harmonicpotential(DELTA);
 
-    // Create the guesses and potential
-    std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels);
-    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 0.5);
+    Vector<double, NDIM> mu{};
+    mu.fill(0.0);
+    Tensor<double> sigma(NDIM, NDIM); // Create a covariance matrix
+    for (int i = 0; i < NDIM; ++i) {
+        for (int j = 0; j < NDIM; ++j) {
+            sigma(i, j) = (i == j) ? 1.0 : 0.0; // Set the diagonal elements to 1
+        }
+    }
+    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 1, mu, sigma);
+
+    // Create the guess generator
+
+    //HarmonicGuessGenerator<double, NDIM> guess_generator(world);
+
+    GuessGenerator<double, NDIM> guess_generator(world);
+    std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels, V);
 
     // Plot the potential
-    plot1D("potential.dat", V + DELTA);
-    std::cout<< "Gaussian" << std::endl;
+    if (NDIM == 1)
+        plot1D("potential.dat", V + DELTA);
+    else if (NDIM == 2)
+        plot2D("potential2D.dat", V + DELTA);
 
     // Plot guesses
     
     for (int i = 0; i < guesses.size(); i++) {
         char filename[512];
         snprintf(filename, 512, "g-%1d.dat", i);
-        plot1D(filename, guesses[i]);
+        if (NDIM == 1)
+            plot1D(filename, guesses[i]);
+        else if (NDIM == 2)
+            plot2D(filename, guesses[i]);
     }
+
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp = diagonalize(world, guesses, V);
+    std::vector<Function<double, NDIM>> diagonalized_guesses = tmp.second;
     
     // Solve for each energy level and store the eigenfunctions
     std::vector<Function<double, NDIM>> eigenfunctions;
 
     for (int i = 0; i < num_levels; i++) {
-        Function<double, NDIM> phi = generate_and_solve(world, V, guesses[i], i, eigenfunctions);
+        Function<double, NDIM> phi = generate_and_solve(world, V, diagonalized_guesses[i], i, eigenfunctions);
         eigenfunctions.push_back(phi);
     }
 
-    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp = diagonalize(world, eigenfunctions, V);
-    std::vector<Function<double, NDIM>> y = tmp.second;
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp1 = diagonalize(world, eigenfunctions, V);
+    std::cout << "Diagonalize" << std::endl;
+    std::vector<Function<double, NDIM>> y = tmp1.second;
     //auto evals = tmp.first;
 
     for (int i = 0; i < num_levels; i++) {
         char filename[256];
         snprintf(filename, 256, "Psi_%1d.dat", i);
         double en = energy(world, y[i], V);
+        std::cout << "Energy: " << en << std::endl;
 
         // for hamonic oscillator
         // V(r) = 0.5 * r * r = E
         // inverse function: r = sqrt(2 * E)
+        /*
         if(y[i](std::sqrt(2* (en+DELTA))) < 0) {
             y[i] *= -1;
         }
+        */
 
-        plot1D(filename, 0.75*y[i] + DELTA + en);
+        if (NDIM == 1)
+            plot1D(filename, y[i] + DELTA + en);
+        else if (NDIM == 2)
+            plot2D(filename, y[i] + DELTA + en);
     }
 
     // Finalizing
