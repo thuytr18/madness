@@ -13,80 +13,6 @@ using namespace madness;
 
 const double DELTA = 20.0;
 
-// Class to generate harmonic guesses
-template<typename T, std::size_t NDIM>
-class HarmonicGuessGenerator {
-    public:
-        class HarmonicGuessFunctor : public FunctionFunctorInterface<T, NDIM> {
-        public:
-            HarmonicGuessFunctor();
-
-            explicit HarmonicGuessFunctor(const int &order): order(order){
-            }
-            
-            const int order;
-
-            /// explicit construction
-            double operator ()(const Vector<T, NDIM>& r) const override {
-                return exp(-r[0]*r[0])*std::pow(r[0], order);
-            }
-        };
-
-        explicit HarmonicGuessGenerator(World& world) : world(world) {
-        }
-
-        // Function to create guesses
-        std::vector<Function<T, NDIM>> create_guesses(int num) {
-            std::vector<Function<T, NDIM>> guesses;
-            for(int i = 0; i < num; i++) {
-                HarmonicGuessFunctor guessfunction(i);
-                Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
-                guesses.push_back(guess_function); // add guess function to list
-            }
-            return guesses; // return list of guess functions
-        }
-
-        private:
-            World& world;
-};
-
-template<typename T, std::size_t NDIM>
-class GuessGenerator {
-    public:
-        class GuessFunctor : public FunctionFunctorInterface<T, NDIM> {
-        public:
-            GuessFunctor();
-
-            explicit GuessFunctor(const int &order, Function<T, NDIM>& V): order(order), V(V){
-            }
-            
-            const int order;
-            Function<T, NDIM> V;
-
-            /// explicit construction
-            double operator ()(const Vector<T, NDIM>& r) const override {
-                return std::pow(r[0], order) * V(r);
-            }
-        };
-
-        explicit GuessGenerator(World& world) : world(world) {
-        }
-
-        // Function to create guesses
-        std::vector<Function<T, NDIM>> create_guesses(int num, Function<T, NDIM>& V) {
-            std::vector<Function<T, NDIM>> guesses;
-            for(int i = 0; i < num; i++) {
-                GuessFunctor guessfunction(i, V);
-                Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
-                guesses.push_back(guess_function); // add guess function to list
-            }
-            return guesses; // return list of guess functions
-        }
-
-        private:
-            World& world;
-};
-
 // Class to generate a harmonic potential
 template<typename T, std::size_t NDIM>
 class HarmonicPotentialGenerator {
@@ -247,6 +173,82 @@ class DoubleWellPotentialGenerator {
 
     private:
         World& world;
+};
+
+//----------------------------------------------------------------------------------------------------------------------------------------------//
+
+// Class to generate harmonic guesses
+template<typename T, std::size_t NDIM>
+class HarmonicGuessGenerator {
+    public:
+        class HarmonicGuessFunctor : public FunctionFunctorInterface<T, NDIM> {
+        public:
+            HarmonicGuessFunctor();
+
+            explicit HarmonicGuessFunctor(const int &order): order(order){
+            }
+            
+            const int order;
+
+            /// explicit construction
+            double operator ()(const Vector<T, NDIM>& r) const override {
+                return exp(-r[0]*r[0])*std::pow(r[0], order);
+            }
+        };
+
+        explicit HarmonicGuessGenerator(World& world) : world(world) {
+        }
+
+        // Function to create guesses
+        std::vector<Function<T, NDIM>> create_guesses(int num) {
+            std::vector<Function<T, NDIM>> guesses;
+            for(int i = 0; i < num; i++) {
+                HarmonicGuessFunctor guessfunction(i);
+                Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
+                guesses.push_back(guess_function); // add guess function to list
+            }
+            return guesses; // return list of guess functions
+        }
+
+        private:
+            World& world;
+};
+
+template<typename T, std::size_t NDIM>
+class GuessGenerator {
+    public:
+        class GuessFunctor : public FunctionFunctorInterface<T, NDIM> {
+        public:
+            GuessFunctor();
+
+            explicit GuessFunctor(const int &order, Function<T, NDIM>& V): order(order), V(V){
+            }
+            
+            const int order;
+            Function<T, NDIM> V;
+
+            /// explicit construction
+            double operator ()(const Vector<T, NDIM>& r) const override {
+                return std::pow(r[0], order) * V(r);
+            }
+        };
+
+        explicit GuessGenerator(World& world) : world(world) {
+        }
+
+        // Function to create guesses
+        std::vector<Function<T, NDIM>> create_guesses(int num, Function<T, NDIM>& V) {
+            std::vector<Function<T, NDIM>> guesses;
+            for(int i = 0; i < num; i++) {
+                GuessFunctor guessfunction(i, V);
+                Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
+                guesses.push_back(guess_function); // add guess function to list
+            }
+            return guesses; // return list of guess functions
+        }
+
+        private:
+            World& world;
 };
 
 #endif 
