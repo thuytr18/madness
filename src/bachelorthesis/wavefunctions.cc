@@ -72,8 +72,10 @@ std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, c
     // Calculate the Diagonal matrix
     Tensor<T> U;
     Tensor<T> evals;
-    sygvp(world, H, overlap, 1, U, evals); // Solve the generalized eigenvalue problem
-
+    // sygvp is a function to solve the generalized eigenvalue problem HU = SUW where S is the overlap matrix and W is the diagonal matrix of eigenvalues of H
+    // The eigenvalues are stored in evals and the eigenvectors are stored in U
+    sygvp(world, H, overlap, 1, U, evals);
+    
     diag_matrix.fill(0.0);
     for(int i = 0; i < num; i++) {
         diag_matrix(i, i) = evals(i); // Set the diagonal elements
@@ -83,6 +85,7 @@ std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, c
 
     std::vector<Function<T, NDIM>> y;
 
+    // y = U * functions
     y = transform(world, functions, U);
     
     // std::cout << "U matrix: \n" << U << std::endl;
@@ -108,7 +111,6 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
         //snprintf(filename, 256, "phi-%1d.dat", N);
         //plot1D(filename,phi);
         
-
         Function<T, NDIM> Vphi = V*phi;
         Vphi.truncate();
         SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.01, 1e-7);  
@@ -156,23 +158,35 @@ int main(int argc, char** argv) {
     startup(world,argc,argv);
     if (world.rank() == 0) printf("starting at time %.1f\n", wall_time());
 
+    //-------------------------------------------------------------------------------//
+
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 3; // Number of levels
+    constexpr int num_levels = 10; // Number of levels // for harmonic oscillator: 10
     constexpr int NDIM = 1;
 
+    //-------------------------------------------------------------------------------//
+
     // Set the defaults
+
     FunctionDefaults<NDIM>::set_k(6);        
     FunctionDefaults<NDIM>::set_thresh(thresh);
     FunctionDefaults<NDIM>::set_cubic_cell(-L, L);  // 1D cubic cell
 
+    //-------------------------------------------------------------------------------//
+
     // Create the potential generator
 
-    //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);
-    //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);
-    DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);
-    
-    //Function<double, NDIM> V = potential_generator.create_harmonicpotential(DELTA);
+    HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
+    //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
+    //DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
 
+    //-------------------------------------------------------------------------------//
+
+    //Create the potential with potential generator
+
+    Function<double, NDIM> V = potential_generator.create_harmonicpotential(DELTA);
+
+    // Parameters mu and sigma for first gaussian potential
     Vector<double, NDIM> mu{};
     mu.fill(0.0);
     Tensor<double> sigma(NDIM, NDIM); // Create a covariance matrix
@@ -181,9 +195,10 @@ int main(int argc, char** argv) {
             sigma(i, j) = (i == j) ? 1.0 : 0.0; // Set the diagonal elements to 1
         }
     }
-    //Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 1, mu, sigma);
 
+    //Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 1, mu, sigma);    // Create the gaussian potential
 
+    // Parameters mu1 and sigma1 for second gaussian potential
     Vector<double, NDIM> mu1{};
     mu1.fill(3.0);
     Tensor<double> sigma1(NDIM, NDIM); // Create a covariance matrix
@@ -192,13 +207,24 @@ int main(int argc, char** argv) {
             sigma1(i, j) = (i == j) ? 1.0 : 0.0; // Set the diagonal elements to 1
         }
     }
-    Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1);
-    // Create the guess generator
+    
+    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1); // Create the double well potential
 
-    //HarmonicGuessGenerator<double, NDIM> guess_generator(world);
+    //-------------------------------------------------------------------------------//
 
-    GuessGenerator<double, NDIM> guess_generator(world);
-    std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels, V);
+    // Create the guess generator 
+
+    HarmonicGuessGenerator<double, NDIM> guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
+    //GuessGenerator<double, NDIM> guess_generator(world);              // Guess generator for all potentials
+
+    //-------------------------------------------------------------------------------//
+
+    // Create the guesses
+
+    std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels);    // Create the guesses for harmonic potential
+    //std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels, V);   // Create the guesses for gaussian potential
+
+    //-------------------------------------------------------------------------------//
 
     // Plot the potential
     if (NDIM == 1)
@@ -207,7 +233,6 @@ int main(int argc, char** argv) {
         plot2D("potential2D.dat", V + DELTA);
 
     // Plot guesses
-    
     for (int i = 0; i < guesses.size(); i++) {
         char filename[512];
         snprintf(filename, 512, "g-%1d.dat", i);
@@ -216,6 +241,8 @@ int main(int argc, char** argv) {
         else if (NDIM == 2)
             plot2D(filename, guesses[i]);
     }
+
+    //--------------------------------------------------------------------------------//
 
     std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp = diagonalize(world, guesses, V);
     std::vector<Function<double, NDIM>> diagonalized_guesses = tmp.second;
@@ -242,14 +269,15 @@ int main(int argc, char** argv) {
         // for hamonic oscillator
         // V(r) = 0.5 * r * r = E
         // inverse function: r = sqrt(2 * E)
-        /*
+       
         if(y[i](std::sqrt(2* (en+DELTA))) < 0) {
             y[i] *= -1;
         }
-        */
+      
 
         if (NDIM == 1)
-            plot1D(filename, y[i] + DELTA + en);
+        // for harmonic oscillator: 0.75 * y[i] + DELTA + en for optical reasons 
+            plot1D(filename, y[i] + DELTA + en); 
         else if (NDIM == 2)
             plot2D(filename, y[i] + DELTA + en);
     }
