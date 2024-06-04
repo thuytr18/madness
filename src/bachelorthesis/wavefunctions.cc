@@ -168,7 +168,8 @@ int main(int argc, char** argv) {
     // Create the potential generator
 
     //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);
-    GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);
+    //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);
+    DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);
     
     //Function<double, NDIM> V = potential_generator.create_harmonicpotential(DELTA);
 
@@ -180,8 +181,18 @@ int main(int argc, char** argv) {
             sigma(i, j) = (i == j) ? 1.0 : 0.0; // Set the diagonal elements to 1
         }
     }
-    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 1, mu, sigma);
+    //Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 1, mu, sigma);
 
+
+    Vector<double, NDIM> mu1{};
+    mu1.fill(3.0);
+    Tensor<double> sigma1(NDIM, NDIM); // Create a covariance matrix
+    for (int i = 0; i < NDIM; ++i) {
+        for (int j = 0; j < NDIM; ++j) {
+            sigma1(i, j) = (i == j) ? 1.0 : 0.0; // Set the diagonal elements to 1
+        }
+    }
+    Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1);
     // Create the guess generator
 
     //HarmonicGuessGenerator<double, NDIM> guess_generator(world);
