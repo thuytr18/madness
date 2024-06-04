@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
 
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 10; // Number of levels // for harmonic oscillator: 10
+    constexpr int num_levels = 3; // Number of levels // for harmonic oscillator: 10
     constexpr int NDIM = 1;
 
     //-------------------------------------------------------------------------------//
@@ -176,19 +176,19 @@ int main(int argc, char** argv) {
 
     // Create the potential generator
 
-    HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
+    //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
     //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
-    //DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
+    DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
 
     //-------------------------------------------------------------------------------//
 
     //Create the potential with potential generator
 
-    Function<double, NDIM> V = potential_generator.create_harmonicpotential(DELTA);
+    //Function<double, NDIM> V = potential_generator.create_harmonicpotential(DELTA);
 
     // Parameters mu and sigma for first gaussian potential
     Vector<double, NDIM> mu{};
-    mu.fill(0.0);
+    mu.fill(-1.5);
     Tensor<double> sigma(NDIM, NDIM); // Create a covariance matrix
     for (int i = 0; i < NDIM; ++i) {
         for (int j = 0; j < NDIM; ++j) {
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
 
     // Parameters mu1 and sigma1 for second gaussian potential
     Vector<double, NDIM> mu1{};
-    mu1.fill(3.0);
+    mu1.fill(1.5);
     Tensor<double> sigma1(NDIM, NDIM); // Create a covariance matrix
     for (int i = 0; i < NDIM; ++i) {
         for (int j = 0; j < NDIM; ++j) {
@@ -208,21 +208,21 @@ int main(int argc, char** argv) {
         }
     }
     
-    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1); // Create the double well potential
+    Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1); // Create the double well potential
 
     //-------------------------------------------------------------------------------//
 
     // Create the guess generator 
 
-    HarmonicGuessGenerator<double, NDIM> guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
-    //GuessGenerator<double, NDIM> guess_generator(world);              // Guess generator for all potentials
+    //HarmonicGuessGenerator<double, NDIM> guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
+    GuessGenerator<double, NDIM> guess_generator(world);              // Guess generator for all potentials
 
     //-------------------------------------------------------------------------------//
 
     // Create the guesses
 
-    std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels);    // Create the guesses for harmonic potential
-    //std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels, V);   // Create the guesses for gaussian potential
+    //std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels);    // Create the guesses for harmonic potential
+    std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels, V);   // Create the guesses for all potential
 
     //-------------------------------------------------------------------------------//
 
@@ -269,12 +269,12 @@ int main(int argc, char** argv) {
         // for hamonic oscillator
         // V(r) = 0.5 * r * r = E
         // inverse function: r = sqrt(2 * E)
-       
+       /*
         if(y[i](std::sqrt(2* (en+DELTA))) < 0) {
             y[i] *= -1;
         }
+        */
       
-
         if (NDIM == 1)
         // for harmonic oscillator: 0.75 * y[i] + DELTA + en for optical reasons 
             plot1D(filename, y[i] + DELTA + en); 
