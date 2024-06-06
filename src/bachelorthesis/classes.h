@@ -1,7 +1,10 @@
 #ifndef CLASSES_H
 #define CLASSES_H
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <iostream>
 #include <madness/mra/mra.h>
 #include <madness/mra/function_interface.h>
 #include <madness/tensor/tensor.h>
@@ -221,15 +224,19 @@ class GuessGenerator {
         public:
             GuessFunctor();
 
-            explicit GuessFunctor(const int &order, Function<T, NDIM>& V): order(order), V(V){
+            explicit GuessFunctor(const Vector<int, NDIM>& order, Function<T, NDIM>& V): order(order), V(V){
             }
             
-            const int order;
+            const Vector<int, NDIM> order;
             Function<T, NDIM> V;
 
             /// explicit construction
             double operator ()(const Vector<T, NDIM>& r) const override {
-                return std::pow(r[0], order) * V(r);
+                double monomial = 1.0;
+                for (int dim = 0; dim < NDIM; dim++) {
+                    monomial *= std::pow(r[dim], order[dim]);
+                }
+                return monomial * V(r);
             }
         };
 
@@ -239,10 +246,49 @@ class GuessGenerator {
         // Function to create guesses
         std::vector<Function<T, NDIM>> create_guesses(int num, Function<T, NDIM>& V) {
             std::vector<Function<T, NDIM>> guesses;
-            for(int i = 0; i < num; i++) {
-                GuessFunctor guessfunction(i, V);
-                Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
-                guesses.push_back(guess_function); // add guess function to list
+            int count = 0;
+            int order = 0;
+            Vector<int, NDIM> orders(0);
+            // iterates over the orders of the monomials
+            while (true) {
+                orders.fill(0);     // array to store the orders of the monomials
+                orders[0] = order;    // set the order of the first monomial 
+                std::cout << "sfafsf1" << std::endl;
+                std::cout << orders[0] << std::endl;
+                while (true) {
+                    GuessFunctor guessfunction(orders, V);
+                    Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
+                    guesses.push_back(guess_function); // add guess function to list
+
+                    count++;
+                    std::cout << count << "sdfa" << num << std::endl;
+
+                    if(count >= num) {
+                        std::cout << "abruch" << std::endl; 
+                        return guesses;
+                    }
+
+                    std::cout << "sfafsf2" << std::endl;
+                    int first_nonzero = 0; // index of the first zero in the array
+                    while (first_nonzero < NDIM && orders[first_nonzero] != 0) {
+                        first_nonzero++;
+                    }
+                    if (first_nonzero >= NDIM-1) {
+                        break;
+                    }
+                    orders[first_nonzero] -= 1;
+                    orders[first_nonzero + 1] += 1;
+                    if (first_nonzero != 0) {
+                        orders[0] = orders[first_nonzero];
+                        orders[first_nonzero] = 0;   
+                    }
+                    
+                    for (int j = 0; j < orders.size(); j++) {
+                        std::cout << orders[j] << " -";
+                        
+                    }
+                }
+                ++order;
             }
             return guesses; // return list of guess functions
         }
