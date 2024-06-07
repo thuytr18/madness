@@ -14,7 +14,7 @@
 
 using namespace madness;
 
-const double DELTA = 20.0;
+const double DELTA = 0.0;
 
 // Class to generate a harmonic potential
 template<typename T, std::size_t NDIM>
@@ -234,7 +234,7 @@ class GuessGenerator {
             double operator ()(const Vector<T, NDIM>& r) const override {
                 double monomial = 1.0;
                 for (int dim = 0; dim < NDIM; dim++) {
-                    monomial *= std::pow(r[dim], order[dim]);
+                    monomial *= std::pow(r[dim], order[dim]); 
                 }
                 return monomial * V(r);
             }
@@ -250,10 +250,10 @@ class GuessGenerator {
             int order = 0;
             Vector<int, NDIM> orders(0);
             // iterates over the orders of the monomials
-            while (true) {
+            while (count < num){
                 orders.fill(0);     // array to store the orders of the monomials
                 orders[0] = order;    // set the order of the first monomial 
-                std::cout << "sfafsf1" << std::endl;
+                std::cout << "Order of the first monomial:" << std::endl;
                 std::cout << orders[0] << std::endl;
                 while (true) {
                     GuessFunctor guessfunction(orders, V);
@@ -261,32 +261,57 @@ class GuessGenerator {
                     guesses.push_back(guess_function); // add guess function to list
 
                     count++;
-                    std::cout << count << "sdfa" << num << std::endl;
+                    std::cout << "Counter: "<< count << " and current num: " << num << std::endl;
 
                     if(count >= num) {
-                        std::cout << "abruch" << std::endl; 
+                        std::cout << "Return guesses" << std::endl; 
                         return guesses;
                     }
 
-                    std::cout << "sfafsf2" << std::endl;
-                    int first_nonzero = 0; // index of the first zero in the array
-                    while (first_nonzero < NDIM && orders[first_nonzero] != 0) {
-                        first_nonzero++;
+                    std::cout << "Get the other orders: " << std::endl;
+
+                    int first_nonzero = 0; // index of the first non-zero in the array
+
+                    std::cout << "First non-zero: " << first_nonzero << std::endl;
+                    std::cout << "order with first non-zero: " << orders[first_nonzero] << std::endl;
+
+                    bool all_zero = true;
+
+                    for (int j = 0; j < orders.size(); j++) {
+                        if (orders[j] != 0) {
+                            all_zero = false;
+                            break;
+                        }
                     }
-                    if (first_nonzero >= NDIM-1) {
+
+                    if (all_zero) {
+                        std::cout << "All zero" << std::endl;
                         break;
                     }
+
+                    while (first_nonzero < NDIM && orders[first_nonzero] != 0) {
+                        first_nonzero++;
+                        std::cout << "First non-zero: " << first_nonzero << std::endl;
+                    }
+
+                    if (first_nonzero >= NDIM-1) {
+                        std::cout << "Break" << std::endl;
+                        break;
+                    }
+
                     orders[first_nonzero] -= 1;
                     orders[first_nonzero + 1] += 1;
+
                     if (first_nonzero != 0) {
                         orders[0] = orders[first_nonzero];
                         orders[first_nonzero] = 0;   
                     }
-                    
+
                     for (int j = 0; j < orders.size(); j++) {
-                        std::cout << orders[j] << " -";
-                        
+                        std::cout << orders[j] << " ";
                     }
+                    std::cout << std::endl;
+                    
                 }
                 ++order;
             }
