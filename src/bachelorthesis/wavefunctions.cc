@@ -113,6 +113,9 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
         
         Function<T, NDIM> Vphi = V*phi;
         Vphi.truncate();
+        // TODO:
+        // Energy cant be positiv
+        // shift potential
         SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.01, 1e-7);  
 
         Function<T, NDIM> r = phi + 2.0 * op(Vphi); // the residual
@@ -130,7 +133,7 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
 
         double norm = phi.norm2();
         phi.scale(1.0/norm);  // phi *= 1.0/norm
-        E = energy(world,phi,V);
+        E = energy(world,phi,V); 
 
         if (world.rank() == 0)
             print("iteration", iter, "energy", E, "norm", norm, "error",err);
@@ -161,7 +164,7 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
 
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 3; // Number of levels // for harmonic oscillator: 10
+    constexpr int num_levels = 4; // Number of levels // for harmonic oscillator: 10
     constexpr int NDIM = 1;
 
     //-------------------------------------------------------------------------------//
