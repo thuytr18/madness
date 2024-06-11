@@ -14,7 +14,7 @@
 
 using namespace madness;
 
-const double DELTA = 0.0;
+const double DELTA = 20.0;
 
 // Class to generate a harmonic potential
 template<typename T, std::size_t NDIM>
@@ -88,7 +88,7 @@ class GaussianPotentialGenerator {
 
                     double potential = - a * exp(- 0.5 * sum);
 
-                    return potential - DELTA;  // shifted potential
+                    return potential; 
                 }
         };
 
@@ -160,7 +160,7 @@ class DoubleWellPotentialGenerator {
 
                     double potential2 = - b * exp(- 0.5 * sum2);
 
-                    return potential1 + potential2 - DELTA;  // shifted potential
+                    return potential1 + potential2;
                 }
         };
 
@@ -322,4 +322,63 @@ class GuessGenerator {
             World& world;
 };
 
+//----------------------------------------------------------------------------------------------------------------------------------------------//
+/*
+// Class to generate the Taylor series of given function
+
+template<typename T, std::size_t NDIM>
+class TaylorSeriesGenerator {
+    public:
+        class TaylorSeriesFunctor : public FunctionFunctorInterface<T, NDIM> {
+        public:
+            TaylorSeriesFunctor();
+
+            explicit TaylorSeriesFunctor(World& world, const Function<T, NDIM>& f, const Vector<T, NDIM>& x0, const int& order): world(world), f(f), x0(x0), order(order){
+            }
+
+            World& world;
+            const Function<T, NDIM> f;
+            const Vector<T, NDIM> x0;
+            const int order;
+
+            /// explicit construction
+            double operator ()(const Vector<T, NDIM>& r) const override {
+                Vector<T, NDIM> diff;
+                for(int i = 0; i < NDIM; i++) {
+                    diff[i] = r[i] - x0[i];
+                }
+
+                double sum = 0.0;
+
+                for(int axis = 0; axis < NDIM; axis++) {
+                    Derivative<T, NDIM> D = free_space_derivative<T, NDIM>(world, axis); // Derivative operator
+
+                    for(int i = 0; i < order; i++) {
+                        sum += nth_derivative(world, dim, i)(f)(x0) * std::pow(diff[0], i) / factorial(i);
+                    }
+                    return sum;
+                }
+            }
+        };  
+
+        explicit TaylorSeriesGenerator(World& world) : world(world) {
+        }
+
+        // Function to create Taylor series
+        Function<T, NDIM> create_taylorseries(World& world, Function<T, NDIM>& f, Vector<T, NDIM>& x0, int order) {
+            TaylorSeriesFunctor taylorseriesfunction(world, f, x0, order);
+            return FunctionFactory<T, NDIM>(world).functor(taylorseriesfunction);  // create taylor series function
+        }
+
+        private:
+            World& world;
+
+            static int factorial(int n) {
+                if(n == 0) {
+                    return 1;
+                }
+                return n * factorial(n-1);
+            }
+};
+*/
 #endif 

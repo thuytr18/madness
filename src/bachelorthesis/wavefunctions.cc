@@ -10,6 +10,7 @@
 #include <madness/mra/nonlinsol.h>
 #include <madness/mra/operator.h>
 #include <madness/mra/vmra.h>
+#include <madness/mra/derivative.h>
 #include <madness/tensor/gentensor.h>
 #include <madness/world/vector.h>
 #include <madness/world/world.h>
@@ -49,16 +50,21 @@ std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, c
     auto diag_matrix = Tensor<T>(num, num); // Diagonal matrix
 
     // Calculate the Hamiltonian matrix
-    Derivative<T, NDIM> D = free_space_derivative<T,NDIM>(world, 0); // Derivative operator
-
+    
     for(int i = 0; i < num; i++) {
         auto energy1 = energy(world, functions[i], V);
         std::cout << energy1 << std::endl;
         for(int j = 0; j < num; j++) {
-            Function<T, NDIM> dx_i = D(functions[i]);
-            Function<T, NDIM> dx_j = D(functions[j]);
+            double kin_energy = 0.0;
+            for (int axis = 0; axis < NDIM; axis++) {
+                Derivative<T, NDIM> D = free_space_derivative<T,NDIM>(world, axis); // Derivative operator
 
-            double kin_energy = 0.5 * inner(dx_i, dx_j);  // (1/2) <dphi/dx | dphi/dx>
+                Function<T, NDIM> dx_i = D(functions[i]);
+                Function<T, NDIM> dx_j = D(functions[j]);
+
+                kin_energy += 0.5 * inner(dx_i, dx_j);  // (1/2) <dphi/dx | dphi/dx>
+            }
+        
             double pot_energy = inner(functions[i], V * functions[j]); // <phi|V|phi>
 
             H(i, j) = kin_energy + pot_energy; // Hamiltonian matrix
@@ -96,7 +102,7 @@ std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, c
 
 // Function to generate and solve for each energy level
 template <typename T, std::size_t NDIM>
-Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, const Function<T, NDIM> guess_function, int N, const std::vector<Function<T, NDIM>>& prev_phi) {
+Function<T, NDIM> generate_and_solve(World& world, Function<T, NDIM>& V, const Function<T, NDIM> guess_function, int N, const std::vector<Function<T, NDIM>>& prev_phi) {
 
     // Create the initial guess wave function
     Function<T, NDIM> phi = guess_function;
@@ -111,11 +117,17 @@ Function<T, NDIM> generate_and_solve(World& world, const Function<T, NDIM>& V, c
         //snprintf(filename, 256, "phi-%1d.dat", N);
         //plot1D(filename,phi);
         
-        Function<T, NDIM> Vphi = V*phi;
-        Vphi.truncate();
-        // TODO:
         // Energy cant be positiv
         // shift potential
+        
+        if (E > 0) {
+            V = V - DELTA;
+            E = energy(world, phi, V);
+        }
+
+        Function<T, NDIM> Vphi = V*phi;
+        Vphi.truncate();
+        
         SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.01, 1e-7);  
 
         Function<T, NDIM> r = phi + 2.0 * op(Vphi); // the residual
@@ -164,7 +176,8 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
 
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 4; // Number of levels // for harmonic oscillator: 10
+    // Number of levels // for harmonic oscillator: 10, for gaussian potential: 3 (needed 2), for double well potential: 4
+    constexpr int num_levels = 4;  
     constexpr int NDIM = 1;
 
     //-------------------------------------------------------------------------------//
@@ -231,9 +244,9 @@ int main(int argc, char** argv) {
 
     // Plot the potential
     if (NDIM == 1)
-        plot1D("potential.dat", V + DELTA);
+        plot1D("potential.dat", V);
     else if (NDIM == 2)
-        plot2D("potential2D.dat", V + DELTA);
+        plot2D("potential2D.dat", V);
 
     // Plot guesses
     for (int i = 0; i < guesses.size(); i++) {
@@ -272,19 +285,35 @@ int main(int argc, char** argv) {
         // for hamonic oscillator
         // V(r) = 0.5 * r * r = E
         // inverse function: r = sqrt(2 * E)
-       /*
+        /*
         if(y[i](std::sqrt(2* (en+DELTA))) < 0) {
             y[i] *= -1;
         }
         */
+        
       
         if (NDIM == 1)
         // for harmonic oscillator: 0.75 * y[i] + DELTA + en for optical reasons 
+        // before it was: y[i] + DELTA + en
             plot1D(filename, y[i] + DELTA + en); 
         else if (NDIM == 2)
-            plot2D(filename, y[i] + DELTA + en);
+            plot2D(filename, y[i]);
     }
 
+    /*
+    // calculate the Taylor series of the potential
+    TaylorSeriesGenerator<double, NDIM> taylor_series_generator(world);
+    Vector<double, NDIM> x0{};
+    x0.fill(0.0);
+    Function<double, NDIM> taylor_series = taylor_series_generator.create_taylorseries(world, V, x0, 2);
+
+    if (NDIM == 1)
+        plot1D("taylor_series.dat", taylor_series);
+    else if (NDIM == 2)
+        plot2D("taylor_series2D.dat", taylor_series);
+
+    */
+    
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
     finalize();
