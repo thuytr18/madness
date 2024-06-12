@@ -111,6 +111,7 @@ Function<T, NDIM> generate_and_solve(World& world, Function<T, NDIM>& V, const F
     double E = energy(world, phi, V);
 
     NonlinearSolverND<NDIM> solver;
+    int count_shift = 0; // counter how often the potential was shifted
 
     for(int iter = 0; iter <= 50; iter++) {
         //char filename[256];
@@ -119,10 +120,11 @@ Function<T, NDIM> generate_and_solve(World& world, Function<T, NDIM>& V, const F
         
         // Energy cant be positiv
         // shift potential
-        
+
         if (E > 0) {
             V = V - DELTA;
             E = energy(world, phi, V);
+            count_shift++;
         }
 
         Function<T, NDIM> Vphi = V*phi;
@@ -161,6 +163,11 @@ Function<T, NDIM> generate_and_solve(World& world, Function<T, NDIM>& V, const F
     else if (NDIM == 2)
         plot2D(filename,phi);
 
+    if (count_shift != 0) {
+        std::cout << "Potential was shifted " << count_shift << " times" << std::endl;
+        V = V + count_shift * DELTA;
+    }
+
     print("Final energy without shift: ", E + DELTA);
     return phi;
 }
@@ -177,8 +184,8 @@ int main(int argc, char** argv) {
 
     const double thresh = 1e-6; // Threshold
     // Number of levels // for harmonic oscillator: 10, for gaussian potential: 3 (needed 2), for double well potential: 4
-    constexpr int num_levels = 4;  
-    constexpr int NDIM = 1;
+    constexpr int num_levels = 3;  
+    constexpr int NDIM = 2; // Dimension
 
     //-------------------------------------------------------------------------------//
 
@@ -193,8 +200,8 @@ int main(int argc, char** argv) {
     // Create the potential generator
 
     //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
-    //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
-    DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
+    GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
+    //DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
 
     //-------------------------------------------------------------------------------//
 
@@ -212,7 +219,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    //Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 1, mu, sigma);    // Create the gaussian potential
+    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 1, mu, sigma);    // Create the gaussian potential
 
     // Parameters mu1 and sigma1 for second gaussian potential
     Vector<double, NDIM> mu1{};
@@ -224,7 +231,7 @@ int main(int argc, char** argv) {
         }
     }
     
-    Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1); // Create the double well potential
+    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1); // Create the double well potential
 
     //-------------------------------------------------------------------------------//
 
@@ -290,30 +297,30 @@ int main(int argc, char** argv) {
             y[i] *= -1;
         }
         */
-        
       
         if (NDIM == 1)
         // for harmonic oscillator: 0.75 * y[i] + DELTA + en for optical reasons 
         // before it was: y[i] + DELTA + en
-            plot1D(filename, y[i] + DELTA + en); 
+            plot1D(filename, y[i] + en); 
         else if (NDIM == 2)
             plot2D(filename, y[i]);
     }
 
-    /*
     // calculate the Taylor series of the potential
     TaylorSeriesGenerator<double, NDIM> taylor_series_generator(world);
-    Vector<double, NDIM> x0{};
-    x0.fill(0.0);
+    std::cout << "Taylor series generator" << std::endl;
+    Vector<double, NDIM> x0(0.0);
+    std::cout << "x0" << std::endl;
     Function<double, NDIM> taylor_series = taylor_series_generator.create_taylorseries(world, V, x0, 2);
+    std::cout << "taylor series" << std::endl;
 
     if (NDIM == 1)
         plot1D("taylor_series.dat", taylor_series);
     else if (NDIM == 2)
         plot2D("taylor_series2D.dat", taylor_series);
 
-    */
-    
+    std::cout << "Taylor series created" << std::endl;
+
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
     finalize();

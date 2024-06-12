@@ -7,10 +7,13 @@
 #include <iostream>
 #include <madness/mra/mra.h>
 #include <madness/mra/function_interface.h>
+#include <madness/mra/vmra.h>
 #include <madness/tensor/tensor.h>
 #include <madness/tensor/tensor_lapack.h>
 #include <madness/world/vector.h>
 #include <madness/world/world.h>
+#include <ostream>
+#include <vector>
 
 using namespace madness;
 
@@ -323,7 +326,38 @@ class GuessGenerator {
 };
 
 //----------------------------------------------------------------------------------------------------------------------------------------------//
-/*
+// helper function for TaylorSeriesGenerator
+
+// Function to calculate the tensor product of two vectors of functions
+template <typename T>
+std::vector<T> tensor_product(const std::vector<T>& v, const std::vector<T>& w) {
+    int N = v.size();
+    int M = w.size();
+    std::vector<T> result(N*M);
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < M; j++) {
+            result[i*M + j] = v[i] * w[j];
+        }
+    }
+    return result;
+}
+
+// Function to calculate the gradient of a vector of functions and put in another vector of functions
+template <typename T, std::size_t NDIM>
+std::vector<Function<T, NDIM>> my_gradient(const std::vector<Function<T, NDIM>>& f) {
+    int N = f.size();
+    std::vector<Function<T, NDIM>> result(N*NDIM);
+    // iterate over the row of the vector of functions f
+    for (int i = 0; i < N; i++) {
+        grad(f[i]);     // calculate the gradient of each function in f
+        for (int j = 0; j < NDIM; j++) {
+            result[i*NDIM + j] = grad(f[i])[j];  // put the gradient in the vector of functions result
+        }
+    }
+    return result;
+}
+
+
 // Class to generate the Taylor series of given function
 
 template<typename T, std::size_t NDIM>
@@ -333,31 +367,54 @@ class TaylorSeriesGenerator {
         public:
             TaylorSeriesFunctor();
 
-            explicit TaylorSeriesFunctor(World& world, const Function<T, NDIM>& f, const Vector<T, NDIM>& x0, const int& order): world(world), f(f), x0(x0), order(order){
+            explicit TaylorSeriesFunctor(World& world, Function<T, NDIM>& f, const Vector<T, NDIM>& x0, const int& order): world(world), f(f), x0(x0), order(order) {
+                std::vector<Function<T, NDIM>> gradient = {f}; 
+
+                std::cout << "gradient" << std::endl;
+                // calculate the gradient of the function
+                for(int ord = 0; ord < order; ord++) {
+                    std::cout << "before my_gradient" << std::endl;
+                    gradient = my_gradient(gradient);
+                    std::cout << "Gradient " << std::endl;
+                }
+
+                // calculate the factorial of the order
+                std::cout << "Factorial" << std::endl;
+                int fac = factorial(order);
+
+                // evaluate the gradient at the point x0
+                gradient_values.resize(gradient.size());
+                for(int i = 0; i < gradient.size(); i++) {
+                    gradient_values[i] = gradient[i](x0) / fac; // evaluate and divide by factorial
+                    std::cout << "Gradient: " << gradient_values[i] << std::endl;
+                }
             }
 
             World& world;
-            const Function<T, NDIM> f;
+            Function<T, NDIM> f;
             const Vector<T, NDIM> x0;
             const int order;
+            std::vector<T> gradient_values;
 
             /// explicit construction
             double operator ()(const Vector<T, NDIM>& r) const override {
-                Vector<T, NDIM> diff;
+                std::vector<T> diff(NDIM);
                 for(int i = 0; i < NDIM; i++) {
                     diff[i] = r[i] - x0[i];
                 }
 
-                double sum = 0.0;
-
-                for(int axis = 0; axis < NDIM; axis++) {
-                    Derivative<T, NDIM> D = free_space_derivative<T, NDIM>(world, axis); // Derivative operator
-
-                    for(int i = 0; i < order; i++) {
-                        sum += nth_derivative(world, dim, i)(f)(x0) * std::pow(diff[0], i) / factorial(i);
-                    }
-                    return sum;
+                std::vector<T> monomials = {1.0};
+                for(int ord = 0; ord < order; ord++) {
+                    monomials = tensor_product(monomials, diff);
                 }
+
+                std::flush(std::cout);
+                T taylor_series = 0.0;
+                for(int i = 0; i < gradient_values.size(); i++) {
+                    std::flush(std::cout);
+                    taylor_series += monomials[i] * gradient_values[i];
+                }
+                return taylor_series;
             }
         };  
 
@@ -366,8 +423,23 @@ class TaylorSeriesGenerator {
 
         // Function to create Taylor series
         Function<T, NDIM> create_taylorseries(World& world, Function<T, NDIM>& f, Vector<T, NDIM>& x0, int order) {
-            TaylorSeriesFunctor taylorseriesfunction(world, f, x0, order);
-            return FunctionFactory<T, NDIM>(world).functor(taylorseriesfunction);  // create taylor series function
+            // creates every term of order of taylor series
+            // saves them in a vector
+            std::vector<Function<T, NDIM>> taylor_series;
+            for(int ord = 0; ord <= order; ord++) {
+                std::cout << "Order: " << order << std::endl;
+                std::cout << "ord: " << ord << std::endl;
+                TaylorSeriesFunctor taylorseries_function(world, f, x0, ord);
+                taylor_series.push_back(FunctionFactory<T, NDIM>(world).functor(taylorseries_function));  // create taylor series function
+                std::cout << "ord: " << ord << std::endl;
+            }
+            // iterates over the terms of the taylor series and adds them up
+            Function<T, NDIM> taylor =FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
+
+            for(int i = 0; i < taylor_series.size(); i++) {
+                taylor += taylor_series[i];
+            }
+            return taylor;
         }
 
         private:
@@ -380,5 +452,5 @@ class TaylorSeriesGenerator {
                 return n * factorial(n-1);
             }
 };
-*/
+
 #endif 
