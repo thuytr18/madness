@@ -18,7 +18,8 @@
 #include <madness/tensor/tensor.h>
 #include <utility>
 #include <vector>
-#include "classes.h"
+#include "potential.h"
+#include "guesses.h"
 #include "plot.h"
 
 

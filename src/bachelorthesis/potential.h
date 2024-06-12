@@ -1,0 +1,184 @@
+#ifndef POTENTIAL_H
+#define POTENTIAL_H
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <iostream>
+#include <madness/mra/mra.h>
+#include <madness/mra/function_interface.h>
+#include <madness/mra/vmra.h>
+#include <madness/tensor/tensor.h>
+#include <madness/tensor/tensor_lapack.h>
+#include <madness/world/vector.h>
+#include <madness/world/world.h>
+#include <ostream>
+#include <vector>
+
+using namespace madness;
+
+const double DELTA = 20.0;
+
+// Class to generate a harmonic potential
+template<typename T, std::size_t NDIM>
+class HarmonicPotentialGenerator {
+    public:
+        class HarmonicPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+            public:
+                HarmonicPotentialFunctor();
+
+                explicit HarmonicPotentialFunctor(const int &DELTA): DELTA(DELTA) {
+                }
+
+                const double DELTA;
+
+                /// explicit construction
+                double operator ()(const Vector<T, NDIM>& r) const override {
+                    double potential = 0.0;
+                    for(int i = 0; i < NDIM; i++) {
+                        potential += 0.5 * (r[i] * r[i]); 
+                    }
+
+                    return potential - DELTA;  // shifted potential
+                }
+        };
+
+        explicit HarmonicPotentialGenerator(World& world) : world(world) {
+        }
+
+        // Function to create potential
+        Function<T, NDIM> create_harmonicpotential(double DELTA) {
+            HarmonicPotentialFunctor harmonic_potential_function(DELTA);
+            return FunctionFactory<T, NDIM>(world).functor(harmonic_potential_function);  // create potential function
+        }
+
+    private:
+        World& world;
+};
+
+// Class to generate a gaussian potential
+template<typename T, std::size_t NDIM>
+class GaussianPotentialGenerator {
+    public:
+        class GaussianPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+            public:
+                GaussianPotentialFunctor();
+
+                explicit GaussianPotentialFunctor(const double &DELTA, const double& a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma): 
+                    DELTA(DELTA), a(a), mu(mu), sigma(sigma) {
+                }
+
+                const double DELTA;
+                const double a;
+                const Vector<T, NDIM> mu;
+                const Tensor<T> sigma;
+
+                /// explicit construction
+                double operator ()(const Vector<T, NDIM>& r) const override {
+                    Vector<T, NDIM> diff;
+                    for (int i = 0; i < NDIM; i++) {
+                        diff[i] = r[i] - mu[i];
+                    } 
+                    
+                    Tensor<double> sigma_inv = inverse(sigma); // inverse of sigma (covariance matrix
+                    double sum = 0.0;
+
+                    for (int i = 0; i < NDIM; ++i) {
+                        for (int j = 0; j < NDIM; ++j) {
+                            sum += diff[i] * sigma_inv(i, j) * diff[j];
+                        }
+                    }
+
+                    double potential = - a * exp(- 0.5 * sum);
+
+                    return potential; 
+                }
+        };
+
+        explicit GaussianPotentialGenerator(World& world) : world(world) {
+        }
+
+        // Function to create potential
+        Function<T, NDIM> create_gaussianpotential(double DELTA, double a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma) {
+            GaussianPotentialFunctor gaussian_potential_function(DELTA, a, mu, sigma);
+            return FunctionFactory<T, NDIM>(world).functor(gaussian_potential_function);  // create potential function
+        }
+
+    private:
+        World& world;
+};
+
+// Class to generate a gaussian potential
+template<typename T, std::size_t NDIM>
+class DoubleWellPotentialGenerator {
+    public:
+        class DoubleWellPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+            public:
+                DoubleWellPotentialFunctor();
+
+                explicit DoubleWellPotentialFunctor(const double &DELTA, const double& a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma, 
+                                                    const double& b, const Vector<T, NDIM>& mu2, const Tensor<T>& sigma2): 
+                    DELTA(DELTA), a(a), mu(mu), sigma(sigma), b(b), mu2(mu2), sigma2(sigma2){
+                }
+
+                const double DELTA;
+                const double a;
+                const Vector<T, NDIM> mu;
+                const Tensor<T> sigma;
+                const double b;
+                const Vector<T, NDIM> mu2;
+                const Tensor<T> sigma2;
+
+                /// explicit construction
+                double operator ()(const Vector<T, NDIM>& r) const override {
+                    Vector<T, NDIM> diff1;
+                    for (int i = 0; i < NDIM; i++) {
+                        diff1[i] = r[i] - mu[i];
+                    } 
+                    
+                    Tensor<double> sigma_inv = inverse(sigma); // inverse of sigma (covariance matrix
+                    double sum1 = 0.0;
+
+                    for (int i = 0; i < NDIM; ++i) {
+                        for (int j = 0; j < NDIM; ++j) {
+                            sum1 += diff1[i] * sigma_inv(i, j) * diff1[j];
+                        }
+                    }
+
+                    double potential1 = - a * exp(- 0.5 * sum1);
+
+                    Vector<T, NDIM> diff2;
+                    for (int i = 0; i < NDIM; i++) {
+                        diff2[i] = r[i] - mu2[i];
+                    } 
+                    
+                    Tensor<double> sigma2_inv = inverse(sigma2); // inverse of sigma (covariance matrix
+                    double sum2 = 0.0;
+
+                    for (int i = 0; i < NDIM; ++i) {
+                        for (int j = 0; j < NDIM; ++j) {
+                            sum2 += diff2[i] * sigma2_inv(i, j) * diff2[j];
+                        }
+                    }
+
+                    double potential2 = - b * exp(- 0.5 * sum2);
+
+                    return potential1 + potential2;
+                }
+        };
+
+        explicit DoubleWellPotentialGenerator(World& world) : world(world) {
+        }
+
+        // Function to create potential
+        Function<T, NDIM> create_doublewellpotential(double DELTA, double a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma, 
+                                                    double b, const Vector<T, NDIM>& mu2, const Tensor<T>& sigma2) {
+            DoubleWellPotentialFunctor doublewell_potential_function(DELTA, a, mu, sigma, b, mu2, sigma2);
+            return FunctionFactory<T, NDIM>(world).functor(doublewell_potential_function);  // create potential function
+        }
+
+    private:
+        World& world;
+};
+
+#endif 
