@@ -20,6 +20,7 @@
 #include <vector>
 #include "potential.h"
 #include "guesses.h"
+#include "taylorseries.h"
 #include "plot.h"
 
 
@@ -186,7 +187,7 @@ int main(int argc, char** argv) {
     const double thresh = 1e-6; // Threshold
     // Number of levels // for harmonic oscillator: 10, for gaussian potential: 3 (needed 2), for double well potential: 4
     constexpr int num_levels = 3;  
-    constexpr int NDIM = 2; // Dimension
+    constexpr int NDIM = 1; // Dimension
 
     //-------------------------------------------------------------------------------//
 
@@ -238,14 +239,14 @@ int main(int argc, char** argv) {
 
     // Create the guess generator 
 
-    //HarmonicGuessGenerator<double, NDIM> guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
+    HarmonicGuessGenerator<double, NDIM> harmonic_guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
     GuessGenerator<double, NDIM> guess_generator(world);              // Guess generator for all potentials
 
     //-------------------------------------------------------------------------------//
 
     // Create the guesses
 
-    //std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels);    // Create the guesses for harmonic potential
+    std::vector<Function<double,NDIM>> harmonic_guesses = harmonic_guess_generator.create_guesses(num_levels);    // Create the guesses for harmonic potential
     std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels, V);   // Create the guesses for all potential
 
     //-------------------------------------------------------------------------------//
@@ -279,9 +280,9 @@ int main(int argc, char** argv) {
         eigenfunctions.push_back(phi);
     }
 
-    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp1 = diagonalize(world, eigenfunctions, V);
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> diagonalized = diagonalize(world, eigenfunctions, V);
     std::cout << "Diagonalize" << std::endl;
-    std::vector<Function<double, NDIM>> y = tmp1.second;
+    std::vector<Function<double, NDIM>> y = diagonalized.second;
     //auto evals = tmp.first;
 
     for (int i = 0; i < num_levels; i++) {
@@ -307,12 +308,14 @@ int main(int argc, char** argv) {
             plot2D(filename, y[i]);
     }
 
+    //-------------------------------------------------------------------------------//
+
     // calculate the Taylor series of the potential
+
     TaylorSeriesGenerator<double, NDIM> taylor_series_generator(world);
-    std::cout << "Taylor series generator" << std::endl;
-    Vector<double, NDIM> x0(0.0);
-    std::cout << "x0" << std::endl;
-    Function<double, NDIM> taylor_series = taylor_series_generator.create_taylorseries(world, V, x0, 2);
+    //Vector<double, NDIM> x0(0.0);
+    //std::cout << "x0" << std::endl;
+    Function<double, NDIM> taylor_series = taylor_series_generator.create_taylorseries(world, V, mu, 2);
     std::cout << "taylor series" << std::endl;
 
     if (NDIM == 1)
@@ -321,6 +324,50 @@ int main(int argc, char** argv) {
         plot2D("taylor_series2D.dat", taylor_series);
 
     std::cout << "Taylor series created" << std::endl;
+
+    //--------------------------------------------------------------------------------//
+    // Create guesses for taylor series and solve for each energy level
+
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp2 = diagonalize(world, harmonic_guesses, taylor_series);
+    std::vector<Function<double, NDIM>> diagonalized_guesses2 = tmp.second;
+    
+    // Solve for each energy level and store the eigenfunctions
+    std::vector<Function<double, NDIM>> eigenfunctions2;
+
+    for (int i = 0; i < num_levels; i++) {
+        Function<double, NDIM> phi2 = generate_and_solve(world, taylor_series, diagonalized_guesses2[i], i, eigenfunctions2);
+        eigenfunctions2.push_back(phi2);
+    }
+
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> diagonalized2 = diagonalize(world, eigenfunctions2, taylor_series);
+    std::cout << "Diagonalize" << std::endl;
+    std::vector<Function<double, NDIM>> y2 = diagonalized2.second;
+    //auto evals = tmp.first;
+
+    for (int i = 0; i < num_levels; i++) {
+        char filename[256];
+        snprintf(filename, 256, "Psi_Taylor_%1d.dat", i);
+        double en = energy(world, y2[i], taylor_series);
+        std::cout << "Energy: " << en << std::endl;
+
+        // for hamonic oscillator
+        // V(r) = 0.5 * r * r = E
+        // inverse function: r = sqrt(2 * E)
+        /*
+        if(y[i](std::sqrt(2* (en+DELTA))) < 0) {
+            y[i] *= -1;
+        }
+        */
+      
+        if (NDIM == 1)
+        // for harmonic oscillator: 0.75 * y[i] + DELTA + en for optical reasons 
+        // before it was: y[i] + DELTA + en
+            plot1D(filename, y2[i] + en); 
+        else if (NDIM == 2)
+            plot2D(filename, y2[i]);
+    }
+
+
 
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
