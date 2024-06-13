@@ -61,23 +61,18 @@ class TaylorSeriesGenerator {
             explicit TaylorSeriesFunctor(World& world, Function<T, NDIM>& f, const Vector<T, NDIM>& x0, const int& order): world(world), f(f), x0(x0), order(order) {
                 std::vector<Function<T, NDIM>> gradient = {f}; 
 
-                std::cout << "gradient" << std::endl;
                 // calculate the gradient of the function
                 for(int ord = 0; ord < order; ord++) {
-                    std::cout << "before my_gradient" << std::endl;
                     gradient = my_gradient(gradient);
-                    std::cout << "Gradient " << std::endl;
                 }
 
                 // calculate the factorial of the order
-                std::cout << "Factorial" << std::endl;
                 int fac = factorial(order);
 
                 // evaluate the gradient at the point x0
                 gradient_values.resize(gradient.size());
                 for(int i = 0; i < gradient.size(); i++) {
                     gradient_values[i] = gradient[i](x0) / fac; // evaluate and divide by factorial
-                    std::cout << "Gradient: " << gradient_values[i] << std::endl;
                 }
             }
 
@@ -118,11 +113,8 @@ class TaylorSeriesGenerator {
             // saves them in a vector
             std::vector<Function<T, NDIM>> taylor_series;
             for(int ord = 0; ord <= order; ord++) {
-                std::cout << "Order: " << order << std::endl;
-                std::cout << "ord: " << ord << std::endl;
                 TaylorSeriesFunctor taylorseries_function(world, f, x0, ord);
                 taylor_series.push_back(FunctionFactory<T, NDIM>(world).functor(taylorseries_function));  // create taylor series function
-                std::cout << "ord: " << ord << std::endl;
             }
             // iterates over the terms of the taylor series and adds them up
             Function<T, NDIM> taylor =FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
