@@ -39,7 +39,7 @@ class HarmonicPotentialGenerator {
                         potential += 0.5 * (r[i] * r[i]); 
                     }
 
-                    return potential - DELTA;  // shifted potential
+                    return potential;  
                 }
         };
 
@@ -175,6 +175,48 @@ class DoubleWellPotentialGenerator {
                                                     double b, const Vector<T, NDIM>& mu2, const Tensor<T>& sigma2) {
             DoubleWellPotentialFunctor doublewell_potential_function(DELTA, a, mu, sigma, b, mu2, sigma2);
             return FunctionFactory<T, NDIM>(world).functor(doublewell_potential_function);  // create potential function
+        }
+
+    private:
+        World& world;
+};
+
+
+template <typename T, std::size_t NDIM>
+class ExponentialPotentialGenerator {
+    public:
+        class ExponentialPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+            public:
+                ExponentialPotentialFunctor();
+
+                explicit ExponentialPotentialFunctor(const double& DELTA, const double& a): DELTA(DELTA), a(a) {
+                }
+
+                const double DELTA;
+                const double a;
+
+                /// explicit construction
+                double operator ()(const Vector<T, NDIM>& r) const override {
+                    double sum = 0.0;
+                    for(int i = 0; i < NDIM; i++) {
+                        sum += r[i] * r[i]; 
+                    }
+                    
+                    sum = sqrt(sum);
+
+                    double potential = - a * exp(- sum);
+
+                    return potential;  // shifted potential
+                }
+        };
+
+        explicit ExponentialPotentialGenerator(World& world) : world(world) {
+        }
+
+        // Function to create potential
+        Function<T, NDIM> create_exponentialpotential(double DELTA, double a) {
+            ExponentialPotentialFunctor exponential_potential_function(DELTA, a);
+            return FunctionFactory<T, NDIM>(world).functor(exponential_potential_function);  // create potential function
         }
 
     private:
