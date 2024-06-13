@@ -5,7 +5,7 @@
 
 using namespace madness;
 
-// for harmonic oscillator L = 5.0
+// for harmonic oscillator and gaussian potential L = 5.0
 const double L = 10.0;  // Length of the 1D cubic cell
 
 // Convenience routine for plotting
