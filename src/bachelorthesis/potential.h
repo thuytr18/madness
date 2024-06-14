@@ -223,4 +223,50 @@ class ExponentialPotentialGenerator {
         World& world;
 };
 
+
+template <typename T, std::size_t NDIM>
+class MorsePotentialGenerator {
+    public:
+        class MorsePotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+            public:
+                MorsePotentialFunctor();
+
+                explicit MorsePotentialFunctor(const double& DELTA, const double& D, const double& a, const double& R): DELTA(DELTA), D(D), a(a), R(R) {
+                }
+
+                const double DELTA;
+                const double D;
+                const double a;
+                const double R;
+
+                /// explicit construction
+                double operator ()(const Vector<T, NDIM>& r) const override {
+                    double sum = 0.0;
+                    for(int i = 0; i < NDIM; i++) {
+                        sum += r[i] * r[i]; 
+                    }
+                    
+                    sum = sqrt(sum);
+
+                    double ex = exp(-a * (sum - R));
+
+                    double potential = D * std::pow((1 - ex), 2);
+
+                    return potential; 
+                }
+        };
+
+        explicit MorsePotentialGenerator(World& world) : world(world) {
+        }
+
+        // Function to create potential
+        Function<T, NDIM> create_morsepotential(double DELTA, double D, double a, double R){
+            MorsePotentialFunctor morse_potential_function(DELTA, D, a, R);
+            return FunctionFactory<T, NDIM>(world).functor(morse_potential_function);  // create potential function
+        }
+
+    private:
+        World& world;
+};
+
 #endif 
