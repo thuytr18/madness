@@ -123,6 +123,7 @@ Function<T, NDIM> generate_and_solve(World& world, Function<T, NDIM>& V, const F
         // Energy cant be positiv
         // shift potential
 
+        // TODO: Shift Energy -1.2 * E
         if (E > 0) {
             V = V - DELTA;
             E = energy(world, phi, V);
@@ -155,6 +156,8 @@ Function<T, NDIM> generate_and_solve(World& world, Function<T, NDIM>& V, const F
             print("iteration", iter, "energy", E, "norm", norm, "error",err);
 
         if (err < 5e-4) break;
+
+        // TODO: SHIFT POTENTIAL BACK
     }
 
     char filename[256];
@@ -202,10 +205,10 @@ int main(int argc, char** argv) {
     // Create the potential generator
 
     //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
-    //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
+    GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
     //DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
     //ExponentialPotentialGenerator<double, NDIM> exponential_potential_generator(world); // Generator for exponential potential
-    MorsePotentialGenerator<double, NDIM> exponential_potential_generator(world);       // Generator for exponential potential
+    //MorsePotentialGenerator<double, NDIM> morse_potential_generator(world);             // Generator for exponential potential
 
     //-------------------------------------------------------------------------------//
 
@@ -215,8 +218,8 @@ int main(int argc, char** argv) {
 
     // Parameters mu and sigma for first gaussian potential
     Vector<double, NDIM> mu{};
-    //mu.fill(0.0);
-    mu.fill(-1.5);
+    mu.fill(0.0);
+    //mu.fill(-1.5);
     Tensor<double> sigma(NDIM, NDIM); // Create a covariance matrix
     for (int i = 0; i < NDIM; ++i) {
         for (int j = 0; j < NDIM; ++j) {
@@ -224,7 +227,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    //Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 10, mu, sigma);    // Create the gaussian potential
+    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 5, mu, sigma);    // Create the gaussian potential
 
     // Parameters mu1 and sigma1 for second gaussian potential
     Vector<double, NDIM> mu1{};
@@ -236,11 +239,11 @@ int main(int argc, char** argv) {
         }
     }
     
-    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1); // Create the double well potential
+    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 5, mu, sigma, 5, mu1, sigma1); // Create the double well potential
 
-    //Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(DELTA, 10.0); // Create the exponential potential
+    //Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(DELTA, 10.0, 0.5); // Create the exponential potential
 
-    Function<double, NDIM> V = exponential_potential_generator.create_morsepotential(DELTA, 10.0, 1.0, 1.0); // Create the morse potential
+    //Function<double, NDIM> V = morse_potential_generator.create_morsepotential(DELTA, 5.0, 1.0, 0.75); // Create the morse potential
  
 
     //-------------------------------------------------------------------------------//
@@ -318,24 +321,122 @@ int main(int argc, char** argv) {
     }
 
     //-------------------------------------------------------------------------------//
-    /*
-    // calculate the Taylor series of the potential
+    
+    // calculate the Taylor series of potential
 
     TaylorSeriesGenerator<double, NDIM> taylor_series_generator(world);
-    Vector<double, NDIM> x0(0.0);
-    Function<double, NDIM> taylor_series = taylor_series_generator.create_taylorseries(world, V, x0, 2);
+    //Vector<double, NDIM> x0(0.0);
+    Function<double, NDIM> approximation = taylor_series_generator.create_taylorseries(world, V, mu, 2);
 
     if (NDIM == 1)
-        plot1D("taylor_series.dat", taylor_series);
+        plot1D("approximation.dat", approximation);
     else if (NDIM == 2)
-        plot2D("taylor_series2D.dat", taylor_series);
+        plot2D("approximation2D.dat", approximation);
+
+    //std::cout << "Taylor series created" << std::endl;
+    /*
+    Function<double, NDIM> approximation1 = taylor_series_generator.create_taylorseries(world, V, mu1, 2);
+
+    if (NDIM == 1)
+        plot1D("approximation1.dat", approximation1);
+    else if (NDIM == 2)
+        plot2D("approximation2D1.dat", approximation1);
 
     std::cout << "Taylor series created" << std::endl;
     */
     //--------------------------------------------------------------------------------//
+    /*
+    // create Approximation of potential
 
+    PotentialGenerator<double, NDIM> potential_generator(world);
+    Function<double, NDIM> approximation = potential_generator.create_potential(6.75, 0.6);
+    //Function<double, NDIM> approximation = potential_generator.create_potential(7, 1);
+
+    if (NDIM == 1)
+        plot1D("approximation.dat", approximation);
+    else if (NDIM == 2)
+        plot2D("approximation2D.dat", approximation);
+    */
+    
+    //--------------------------------------------------------------------------------//
+    // create the guesses for the taylor series
+    HarmonicGuessGenerator<double, NDIM> harmonic_guess_generator(world);
+    std::vector<Function<double,NDIM>> approximation_guesses = harmonic_guess_generator.create_guesses(num_levels);
+
+// Plot guesses
+    for (int i = 0; i < guesses.size(); i++) {
+        char filename[512];
+        snprintf(filename, 512, "ga-%1d.dat", i);
+        if (NDIM == 1)
+            plot1D(filename, guesses[i]);
+        else if (NDIM == 2)
+            plot2D(filename, guesses[i]);
+    }
+
+
+    // diagonalize the taylor series
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp2 = diagonalize(world, approximation_guesses, V);
+    std::vector<Function<double, NDIM>> approximation_guesses_diagonalized = tmp2.second;
+
+    std::vector<Function<double, NDIM>> approximation_eigenfunctions;
+
+    for (int i = 0; i < num_levels; i++) {
+        Function<double, NDIM> phi = generate_and_solve(world, V, approximation_guesses_diagonalized[i], i, approximation_eigenfunctions);
+        approximation_eigenfunctions.push_back(phi);
+    }
+
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> approximation_diagonalized = diagonalize(world, approximation_eigenfunctions, V);
+    std::vector<Function<double, NDIM>> approximation_y = approximation_diagonalized.second;
+
+    for(int i = 0; i < num_levels; i++) {
+        char filename[256];
+        snprintf(filename, 256, "PsiApprox_%1d.dat", i);
+        double en = energy(world, approximation_y[i], approximation);
+        std::cout << "Energy: " << en << std::endl;
+
+        if (NDIM == 1)
+            plot1D(filename, approximation_y[i] + en);
+        else if (NDIM == 2)
+            plot2D(filename, approximation_y[i]);
+    }
+    
+    /*
+    std::vector<Function<double,NDIM>> approximation1_guesses = harmonic_guess_generator.create_guesses(num_levels);
+
+    // diagonalize the taylor series
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp3 = diagonalize(world, approximation1_guesses, approximation1);
+    std::vector<Function<double, NDIM>> approximation1_guesses_diagonalized = tmp3.second;
+
+    std::vector<Function<double, NDIM>> approximation1_eigenfunctions;
+
+    for (int i = 0; i < num_levels; i++) {
+        Function<double, NDIM> phi = generate_and_solve(world, approximation1, approximation1_guesses_diagonalized[i], i, approximation1_eigenfunctions);
+        approximation1_eigenfunctions.push_back(phi);
+    }
+
+    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> approximation1_diagonalized = diagonalize(world, approximation1_eigenfunctions, approximation1);
+    std::vector<Function<double, NDIM>> approximation1_y = approximation1_diagonalized.second;
+
+    for(int i = 0; i < num_levels; i++) {
+        char filename[256];
+        snprintf(filename, 256, "PsiApprox1_%1d.dat", i);
+        double en = energy(world, approximation1_y[i], approximation1);
+        std::cout << "Energy: " << en << std::endl;
+
+        if (NDIM == 1)
+            plot1D(filename, approximation1_y[i] + en);
+        else if (NDIM == 2)
+            plot2D(filename, approximation1_y[i]);
+    }
+    */
+    
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
     finalize();
     return 0;
 }
+
+// modell fermionic system as chapter 4. of the bachelor thesis
+// hard tree fock solver 
+
+// Title: automatized eigensolver for General One-body Potentials
