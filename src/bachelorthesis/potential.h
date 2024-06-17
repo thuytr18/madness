@@ -189,17 +189,18 @@ class ExponentialPotentialGenerator {
             public:
                 ExponentialPotentialFunctor();
 
-                explicit ExponentialPotentialFunctor(const double& DELTA, const double& a): DELTA(DELTA), a(a) {
+                explicit ExponentialPotentialFunctor(const double& DELTA, const double& a, const double& b): DELTA(DELTA), a(a), b(b){
                 }
 
                 const double DELTA;
                 const double a;
+                const double b;
 
                 /// explicit construction
                 double operator ()(const Vector<T, NDIM>& r) const override {
                     double sum = 0.0;
                     for(int i = 0; i < NDIM; i++) {
-                        sum += r[i] * r[i]; 
+                        sum += b * b * r[i] * r[i]; 
                     }
                     
                     sum = sqrt(sum);
@@ -214,8 +215,8 @@ class ExponentialPotentialGenerator {
         }
 
         // Function to create potential
-        Function<T, NDIM> create_exponentialpotential(double DELTA, double a) {
-            ExponentialPotentialFunctor exponential_potential_function(DELTA, a);
+        Function<T, NDIM> create_exponentialpotential(double DELTA, double a, double b) {
+            ExponentialPotentialFunctor exponential_potential_function(DELTA, a, b);
             return FunctionFactory<T, NDIM>(world).functor(exponential_potential_function);  // create potential function
         }
 
@@ -263,6 +264,44 @@ class MorsePotentialGenerator {
         Function<T, NDIM> create_morsepotential(double DELTA, double D, double a, double R){
             MorsePotentialFunctor morse_potential_function(DELTA, D, a, R);
             return FunctionFactory<T, NDIM>(world).functor(morse_potential_function);  // create potential function
+        }
+
+    private:
+        World& world;
+};
+
+// Class to generate a harmonic potential
+template<typename T, std::size_t NDIM>
+class PotentialGenerator {
+    public:
+        class PotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+            public:
+                PotentialFunctor();
+
+                explicit PotentialFunctor(const double &DELTA, const double& a): DELTA(DELTA), a(a) {
+                }
+
+                const double DELTA;
+                const double a;
+
+                /// explicit construction
+                double operator ()(const Vector<T, NDIM>& r) const override {
+                    double potential = 0.0;
+                    for(int i = 0; i < NDIM; i++) {
+                        potential += a* (r[i] * r[i]); 
+                    }
+
+                    return potential - DELTA;  
+                }
+        };
+
+        explicit PotentialGenerator(World& world) : world(world) {
+        }
+
+        // Function to create potential
+        Function<T, NDIM> create_potential(double DELTA, double a) {
+            PotentialFunctor potential_function(DELTA, a);
+            return FunctionFactory<T, NDIM>(world).functor(potential_function);  // create potential function
         }
 
     private:
