@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
 
     const double thresh = 1e-6; // Threshold
     // Number of levels // for harmonic oscillator: 10, for gaussian potential: 5, for double well potential: 4, for exponential potential: 5, for morse potential: 4
-    constexpr int num_levels = 4;  
+    constexpr int num_levels = 5;  
     constexpr int max_iter = 100; // Maximum number of iterations
     constexpr int NDIM = 1; // Dimension
 
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 5, mu, sigma);    // Create the gaussian potential
+    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(DELTA, 10, mu, sigma);    // Create the gaussian potential
 
     // Parameters mu1 and sigma1 for second gaussian potential
     Vector<double, NDIM> mu1{};
@@ -88,9 +88,9 @@ int main(int argc, char** argv) {
         }
     }
     
-    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 5, mu, sigma, 5, mu1, sigma1); // Create the double well potential
+    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(DELTA, 1, mu, sigma, 1, mu1, sigma1); // Create the double well potential
 
-    //Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(DELTA, 10.0, 0.5); // Create the exponential potential
+    //Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(DELTA, 10.0, 1); // Create the exponential potential
 
     //Function<double, NDIM> V = morse_potential_generator.create_morsepotential(DELTA, 5.0, 1.0, 0.75); // Create the morse potential
  
@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
 
     
     //--------------------------------------------------------------------------------//
+    // only for harmonic guesses
     /*
     // Plot guesses
     for (int i = 0; i < guesses.size(); i++) {
@@ -130,6 +131,7 @@ int main(int argc, char** argv) {
             plot2D(filename, guesses[i]);
     }
     */
+    
     //--------------------------------------------------------------------------------//
     
     // Create Eigensolver
@@ -137,6 +139,8 @@ int main(int argc, char** argv) {
 
     //-------------------------------------------------------------------------------//
 
+    // Solve the eigenvalue problem for potential V and guesses
+    //std::vector<Function<double, NDIM>> y = solver.solve(V, guesses, num_levels, max_iter);  // here only for harmonic potential
     std::vector<Function<double, NDIM>> y = solver.solve(V, num_levels, 100); // Solve the eigenvalue problem for potential V 
 
     // plot the eigenfunctions
@@ -202,7 +206,7 @@ int main(int argc, char** argv) {
     */
     
     //--------------------------------------------------------------------------------//
-    
+    /*
     // create the guesses for the taylor series
     HarmonicGuessGenerator<double, NDIM> harmonic_guess_generator(world);
     std::vector<Function<double,NDIM>> approximation_guesses = harmonic_guess_generator.create_guesses(num_levels);
@@ -232,7 +236,7 @@ int main(int argc, char** argv) {
             plot2D(filename, approximation_y[i]);
     }
     
-    /*
+    
     std::vector<Function<double,NDIM>> approximation1_guesses = harmonic_guess_generator.create_guesses(num_levels);
 
     // diagonalize the taylor series
