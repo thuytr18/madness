@@ -88,30 +88,6 @@ class Eigensolver {
             std::vector<Function<double, NDIM>> y = diagonalized.second;
 
             return y;
-
-            // plot the eigenfunctions
-            for (int i = 0; i < num_levels; i++) {
-                char filename[256];
-                snprintf(filename, 256, "Psi_%1d.dat", i);
-                double en = energy(world, y[i], V);
-                std::cout << "Energy: " << en << std::endl;
-
-                // for hamonic oscillator
-                // V(r) = 0.5 * r * r = E
-                // inverse function: r = sqrt(2 * E)
-                /*
-                if(y[i](std::sqrt(2* en)) < 0) {
-                    y[i] *= -1;
-                }
-                */
-                
-                if (NDIM == 1)
-                // for harmonic oscillator: 0.75 * y[i] + en for optical reasons 
-                // before it was: y[i] + DELTA + en
-                    plot1D(filename, y[i] + en); 
-                else if (NDIM == 2)
-                    plot2D(filename, y[i]);
-            }
         } 
 
         // Function to calculate the energy
@@ -209,19 +185,19 @@ class Eigensolver {
                 
                 // Energy cant be positiv
                 // shift potential
+
                 double shift = 0.0;
 
                 if (E > 0) {
-                    shift = -1.2 * E;
+                    shift = -20;
+                    E = energy(world, phi, V + shift);
                     count_shift++;
                 }
 
-                Function<T, NDIM> Vphi = V*phi + shift*phi; 
+                Function<T, NDIM> Vphi = (V + shift) * phi;
                 Vphi.truncate();
-
-                double a = -2 * E + (-2) * shift;
-
-                SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(a), 0.01, 1e-7);  
+                
+                SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.01, 1e-7);  
 
                 Function<T, NDIM> r = phi + 2.0 * op(Vphi); // the residual
                 T err = r.norm2();
