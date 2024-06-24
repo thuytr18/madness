@@ -288,7 +288,7 @@ class PotentialGenerator {
                 double operator ()(const Vector<T, NDIM>& r) const override {
                     double potential = 0.0;
                     for(int i = 0; i < NDIM; i++) {
-                        potential += a* (r[i] * r[i]); 
+                        potential += 0.5 * a * (r[i] * r[i]); 
                     }
 
                     return potential - DELTA;  
