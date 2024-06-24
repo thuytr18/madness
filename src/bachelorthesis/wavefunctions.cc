@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
 
     const double thresh = 1e-6; // Threshold
     // Number of levels // for harmonic oscillator: 10, for gaussian potential: 5, for double well potential: 4, for exponential potential: 5, for morse potential: 4
-    constexpr int num_levels = 5;  
+    constexpr int num_levels = 4;  
     constexpr int max_iter = 100; // Maximum number of iterations
     constexpr int NDIM = 1; // Dimension
 
@@ -97,17 +97,15 @@ int main(int argc, char** argv) {
 
     //-------------------------------------------------------------------------------//
 
-    // Create the guess generator 
+    // Create the harmonic guess generator
 
     //HarmonicGuessGenerator<double, NDIM> harmonic_guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
-    //GuessGenerator<double, NDIM> guess_generator(world);              // Guess generator for all potentials
 
     //-------------------------------------------------------------------------------//
 
-    // Create the guesses
+    // Create the harmonic guesses
 
     //std::vector<Function<double,NDIM>> guesses = harmonic_guess_generator.create_guesses(num_levels);    // Create the guesses for harmonic potential
-    //std::vector<Function<double,NDIM>> guesses = guess_generator.create_guesses(num_levels, V);   // Create the guesses for all potential
 
     //-------------------------------------------------------------------------------//
 
@@ -170,7 +168,7 @@ int main(int argc, char** argv) {
     //--------------------------------------------------------------------------------//
     
     // calculate the Taylor series of potential
-    /*
+    
     TaylorSeriesGenerator<double, NDIM> taylor_series_generator(world);
     //Vector<double, NDIM> x0(0.0);
     Function<double, NDIM> approximation = taylor_series_generator.create_taylorseries(world, V, mu, 2);
@@ -181,7 +179,7 @@ int main(int argc, char** argv) {
         plot2D("approximation2D.dat", approximation);
 
     //std::cout << "Taylor series created" << std::endl;
-    
+    /*
     Function<double, NDIM> approximation1 = taylor_series_generator.create_taylorseries(world, V, mu1, 2);
 
     if (NDIM == 1)
@@ -206,7 +204,7 @@ int main(int argc, char** argv) {
     */
     
     //--------------------------------------------------------------------------------//
-    /*
+    
     // create the guesses for the taylor series
     HarmonicGuessGenerator<double, NDIM> harmonic_guess_generator(world);
     std::vector<Function<double,NDIM>> approximation_guesses = harmonic_guess_generator.create_guesses(num_levels);
@@ -235,36 +233,6 @@ int main(int argc, char** argv) {
         else if (NDIM == 2)
             plot2D(filename, approximation_y[i]);
     }
-    
-    
-    std::vector<Function<double,NDIM>> approximation1_guesses = harmonic_guess_generator.create_guesses(num_levels);
-
-    // diagonalize the taylor series
-    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> tmp3 = diagonalize(world, approximation1_guesses, approximation1);
-    std::vector<Function<double, NDIM>> approximation1_guesses_diagonalized = tmp3.second;
-
-    std::vector<Function<double, NDIM>> approximation1_eigenfunctions;
-
-    for (int i = 0; i < num_levels; i++) {
-        Function<double, NDIM> phi = generate_and_solve(world, approximation1, approximation1_guesses_diagonalized[i], i, approximation1_eigenfunctions);
-        approximation1_eigenfunctions.push_back(phi);
-    }
-
-    std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> approximation1_diagonalized = diagonalize(world, approximation1_eigenfunctions, approximation1);
-    std::vector<Function<double, NDIM>> approximation1_y = approximation1_diagonalized.second;
-
-    for(int i = 0; i < num_levels; i++) {
-        char filename[256];
-        snprintf(filename, 256, "PsiApprox1_%1d.dat", i);
-        double en = energy(world, approximation1_y[i], approximation1);
-        std::cout << "Energy: " << en << std::endl;
-
-        if (NDIM == 1)
-            plot1D(filename, approximation1_y[i] + en);
-        else if (NDIM == 2)
-            plot2D(filename, approximation1_y[i]);
-    }
-    */
     
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
