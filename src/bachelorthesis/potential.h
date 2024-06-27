@@ -253,7 +253,7 @@ class MorsePotentialGenerator {
 
                     double potential = D * std::pow((1 - ex), 2);
 
-                    return potential; 
+                    return potential - D; 
                 }
         };
 
