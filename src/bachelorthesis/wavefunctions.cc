@@ -241,6 +241,6 @@ int main(int argc, char** argv) {
 }
 
 // modell fermionic system as chapter 4. of the bachelor thesis
-// hard tree fock solver 
+// hartree fock solver 
 
 // Title: automatized eigensolver for General One-body Potentials
