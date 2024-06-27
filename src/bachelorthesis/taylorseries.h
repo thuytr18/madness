@@ -73,6 +73,7 @@ class TaylorSeriesGenerator {
                 gradient_values.resize(gradient.size());
                 for(int i = 0; i < gradient.size(); i++) {
                     gradient_values[i] = gradient[i](x0) / fac; // evaluate and divide by factorial
+                    std::cout << "Gradient value: " << gradient_values[i] << std::endl;
                 }
             }
 
