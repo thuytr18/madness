@@ -25,14 +25,16 @@ class HarmonicGuessGenerator {
         public:
             HarmonicGuessFunctor();
 
-            explicit HarmonicGuessFunctor(const int &order): order(order){
+            explicit HarmonicGuessFunctor(const int &order, const double& a): order(order), a(a) {
             }
             
             const int order;
+            const double a;
 
             /// explicit construction
             double operator ()(const Vector<T, NDIM>& r) const override {
-                return exp(-r[0]*r[0])*std::pow(r[0], order);
+                // parameter 2. Ableitung
+                return exp(-a * r[0]*r[0])*std::pow(r[0], order);
             }
         };
 
@@ -40,10 +42,10 @@ class HarmonicGuessGenerator {
         }
 
         // Function to create guesses
-        std::vector<Function<T, NDIM>> create_guesses(int num) {
+        std::vector<Function<T, NDIM>> create_guesses(int num, const double& a) {
             std::vector<Function<T, NDIM>> guesses;
             for(int i = 0; i < num; i++) {
-                HarmonicGuessFunctor guessfunction(i);
+                HarmonicGuessFunctor guessfunction(i, a);
                 Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
                 guesses.push_back(guess_function); // add guess function to list
             }
