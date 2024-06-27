@@ -179,6 +179,7 @@ class Eigensolver {
             int count_shift = 0; // counter how often the potential was shifted
 
             for(int iter = 0; iter <= max_iter; iter++) {
+                // TODO: Morse-Potential iterationen plotten
                 //char filename[256];
                 //snprintf(filename, 256, "phi-%1d.dat", N);
                 //plot1D(filename,phi);
@@ -190,6 +191,7 @@ class Eigensolver {
 
                 if (E > 0) {
                     shift = -20;
+                    //shift = - 1.2 * E;
                     E = energy(world, phi, V + shift);
                     count_shift++;
                 }
@@ -197,7 +199,7 @@ class Eigensolver {
                 Function<T, NDIM> Vphi = (V + shift) * phi;
                 Vphi.truncate();
                 
-                SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.01, 1e-7);  
+                SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*E), 0.001, 1e-7);  
 
                 Function<T, NDIM> r = phi + 2.0 * op(Vphi); // the residual
                 T err = r.norm2();
