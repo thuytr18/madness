@@ -74,6 +74,9 @@ class TaylorSeriesGenerator {
                 for(int i = 0; i < gradient.size(); i++) {
                     gradient_values[i] = gradient[i](x0) / fac; // evaluate and divide by factorial
                     std::cout << "Gradient value: " << gradient_values[i] << std::endl;
+                    if(order == 2) {
+                        quadratic_coefficients.push_back(gradient_values[i]);
+                    }
                 }
             }
 
@@ -82,6 +85,7 @@ class TaylorSeriesGenerator {
             const Vector<T, NDIM> x0;
             const int order;
             std::vector<T> gradient_values;
+            std::vector<T> quadratic_coefficients;
 
             /// explicit construction
             double operator ()(const Vector<T, NDIM>& r) const override {
@@ -103,19 +107,32 @@ class TaylorSeriesGenerator {
                 }
                 return taylor_series;
             }
+
+            std::vector<T> get_quadratic_coefficients() {
+                for(int i = 0; i < quadratic_coefficients.size(); i++) {
+                    std::cout << "Quadratic coefficient " << quadratic_coefficients[i] << std::endl;
+                }
+                return quadratic_coefficients;
+            }
         };  
 
         explicit TaylorSeriesGenerator(World& world) : world(world) {
         }
 
         // Function to create Taylor series
-        Function<T, NDIM> create_taylorseries(World& world, Function<T, NDIM>& f, Vector<T, NDIM>& x0, int order) {
+         std::pair<Function<T, NDIM>, std::vector<T>> create_taylorseries(World& world, Function<T, NDIM>& f, Vector<T, NDIM>& x0, int order) {
             // creates every term of order of taylor series
             // saves them in a vector
             std::vector<Function<T, NDIM>> taylor_series;
+            std::vector<T> quadratic_coefficients;
+
             for(int ord = 0; ord <= order; ord++) {
                 TaylorSeriesFunctor taylorseries_function(world, f, x0, ord);
                 taylor_series.push_back(FunctionFactory<T, NDIM>(world).functor(taylorseries_function));  // create taylor series function
+
+                if (ord == 2) {
+                    quadratic_coefficients = taylorseries_function.get_quadratic_coefficients();
+                }
             }
             // iterates over the terms of the taylor series and adds them up
             Function<T, NDIM> taylor =FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
@@ -123,7 +140,8 @@ class TaylorSeriesGenerator {
             for(int i = 0; i < taylor_series.size(); i++) {
                 taylor += taylor_series[i];
             }
-            return taylor;
+
+            return std::make_pair(taylor, quadratic_coefficients);
         }
 
         private:
