@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
     const double thresh = 1e-6; // Threshold
     // Number of levels // for harmonic oscillator: 10, for gaussian potential: 5, for double well potential: 4, for exponential potential: 5, for morse potential: 4
-    constexpr int num_levels = 10;
-    constexpr int max_iter = 300; // Maximum number of iterations
+    constexpr int num_levels = 5;
+    constexpr int max_iter = 50; // Maximum number of iterations
     constexpr int NDIM = 1; // Dimension
 
     //-------------------------------------------------------------------------------//
@@ -52,9 +52,9 @@ int main(int argc, char** argv) {
 
     // Create the potential generator
 
-    HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
+    //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
     //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
-    //DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
+    DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
     //ExponentialPotentialGenerator<double, NDIM> exponential_potential_generator(world); // Generator for exponential potential
     //MorsePotentialGenerator<double, NDIM> morse_potential_generator(world);             // Generator for exponential potential
 
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
 
     //Create the potential with potential generator
 
-    Function<double, NDIM> V = potential_generator.create_harmonicpotential(0.0);
+    //Function<double, NDIM> V = potential_generator.create_harmonicpotential(0.0);
 
     // Parameters mu and sigma for first gaussian potential
     Vector<double, NDIM> mu{};
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
         }
     }
     
-    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(5, mu, sigma, 5, mu1, sigma1); // Create the double well potential
+    Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(5, mu, sigma, 5, mu1, sigma1); // Create the double well potential
 
     //Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(10.0, 1); // Create the exponential potential
 
@@ -98,13 +98,13 @@ int main(int argc, char** argv) {
 
     // Create the harmonic guess generator
 
-    HarmonicGuessGenerator<double, NDIM> harmonic_guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
+    //HarmonicGuessGenerator<double, NDIM> harmonic_guess_generator(world);      // Harmonic guess generator for harmonic and gaussian potential
 
     //-------------------------------------------------------------------------------//
 
     // Create the harmonic guesses
 
-    std::vector<Function<double,NDIM>> guesses = harmonic_guess_generator.create_guesses(num_levels, 1);    // Create the guesses for harmonic potential
+    //std::vector<Function<double,NDIM>> guesses = harmonic_guess_generator.create_guesses(num_levels, 1);    // Create the guesses for harmonic potential
 
     //-------------------------------------------------------------------------------//
 
@@ -137,8 +137,8 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
 
     // Solve the eigenvalue problem for potential V and guesses
-    std::vector<Function<double, NDIM>> y = solver.solve(V, guesses, num_levels, max_iter);  // here only for harmonic potential
-    //std::vector<Function<double, NDIM>> y = solver.solve(V, num_levels, max_iter); // Solve the eigenvalue problem for potential V 
+    //std::vector<Function<double, NDIM>> y = solver.solve(V, guesses, num_levels, max_iter);  // here only for harmonic potential
+    std::vector<Function<double, NDIM>> y = solver.solve(V, num_levels, max_iter); // Solve the eigenvalue problem for potential V 
 
     // plot the eigenfunctions
     for (int i = 0; i < num_levels; i++) {
@@ -150,16 +150,16 @@ int main(int argc, char** argv) {
         // for hamonic oscillator
         // V(r) = 0.5 * r * r = E
         // inverse function: r = sqrt(2 * E)
-        
+        /*
         if(y[i](std::sqrt(2* en)) < 0) {
             y[i] *= -1;
         }
-        
+        */
         
         if (NDIM == 1)
         // for harmonic oscillator: 0.75 * y[i] + en for optical reasons 
         // before it was: y[i] + en
-            plot1D(filename, 0.75*y[i] + en); 
+            plot1D(filename, y[i] + en); 
         else if (NDIM == 2)
             plot2D(filename, y[i]);
     }
