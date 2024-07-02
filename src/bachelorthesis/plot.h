@@ -6,7 +6,7 @@
 using namespace madness;
 
 // for harmonic oscillator and gaussian potential L = 5.0
-const double L = 10.0;  // Length of the 1D cubic cell
+const double L = 5.0;  // Length of the 1D cubic cell
 
 // Convenience routine for plotting
 template <typename T, std::size_t NDIM>
