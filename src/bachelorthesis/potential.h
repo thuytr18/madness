@@ -17,8 +17,6 @@
 
 using namespace madness;
 
-const double DELTA = 20.0;
-
 // Class to generate a harmonic potential
 template<typename T, std::size_t NDIM>
 class HarmonicPotentialGenerator {
@@ -27,10 +25,10 @@ class HarmonicPotentialGenerator {
             public:
                 HarmonicPotentialFunctor();
 
-                explicit HarmonicPotentialFunctor(const int &DELTA): DELTA(DELTA) {
+                explicit HarmonicPotentialFunctor(const double& potential_shift): potential_shift(potential_shift) {
                 }
 
-                const double DELTA;
+                const double potential_shift;
 
                 /// explicit construction
                 double operator ()(const Vector<T, NDIM>& r) const override {
@@ -47,8 +45,8 @@ class HarmonicPotentialGenerator {
         }
 
         // Function to create potential
-        Function<T, NDIM> create_harmonicpotential(double DELTA) {
-            HarmonicPotentialFunctor harmonic_potential_function(DELTA);
+        Function<T, NDIM> create_harmonicpotential(double potential_shift) {
+            HarmonicPotentialFunctor harmonic_potential_function(potential_shift);
             return FunctionFactory<T, NDIM>(world).functor(harmonic_potential_function);  // create potential function
         }
 
@@ -64,11 +62,10 @@ class GaussianPotentialGenerator {
             public:
                 GaussianPotentialFunctor();
 
-                explicit GaussianPotentialFunctor(const double &DELTA, const double& a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma): 
-                    DELTA(DELTA), a(a), mu(mu), sigma(sigma) {
+                explicit GaussianPotentialFunctor(const double& a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma): 
+                    a(a), mu(mu), sigma(sigma) {
                 }
 
-                const double DELTA;
                 const double a;
                 const Vector<T, NDIM> mu;
                 const Tensor<T> sigma;
@@ -99,8 +96,8 @@ class GaussianPotentialGenerator {
         }
 
         // Function to create potential
-        Function<T, NDIM> create_gaussianpotential(double DELTA, double a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma) {
-            GaussianPotentialFunctor gaussian_potential_function(DELTA, a, mu, sigma);
+        Function<T, NDIM> create_gaussianpotential(double a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma) {
+            GaussianPotentialFunctor gaussian_potential_function(a, mu, sigma);
             return FunctionFactory<T, NDIM>(world).functor(gaussian_potential_function);  // create potential function
         }
 
@@ -116,12 +113,11 @@ class DoubleWellPotentialGenerator {
             public:
                 DoubleWellPotentialFunctor();
 
-                explicit DoubleWellPotentialFunctor(const double &DELTA, const double& a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma, 
+                explicit DoubleWellPotentialFunctor(const double& a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma, 
                                                     const double& b, const Vector<T, NDIM>& mu2, const Tensor<T>& sigma2): 
-                    DELTA(DELTA), a(a), mu(mu), sigma(sigma), b(b), mu2(mu2), sigma2(sigma2){
+                    a(a), mu(mu), sigma(sigma), b(b), mu2(mu2), sigma2(sigma2){
                 }
 
-                const double DELTA;
                 const double a;
                 const Vector<T, NDIM> mu;
                 const Tensor<T> sigma;
@@ -171,9 +167,9 @@ class DoubleWellPotentialGenerator {
         }
 
         // Function to create potential
-        Function<T, NDIM> create_doublewellpotential(double DELTA, double a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma, 
+        Function<T, NDIM> create_doublewellpotential(double a, const Vector<T, NDIM>& mu, const Tensor<T>& sigma, 
                                                     double b, const Vector<T, NDIM>& mu2, const Tensor<T>& sigma2) {
-            DoubleWellPotentialFunctor doublewell_potential_function(DELTA, a, mu, sigma, b, mu2, sigma2);
+            DoubleWellPotentialFunctor doublewell_potential_function(a, mu, sigma, b, mu2, sigma2);
             return FunctionFactory<T, NDIM>(world).functor(doublewell_potential_function);  // create potential function
         }
 
@@ -189,10 +185,9 @@ class ExponentialPotentialGenerator {
             public:
                 ExponentialPotentialFunctor();
 
-                explicit ExponentialPotentialFunctor(const double& DELTA, const double& a, const double& b): DELTA(DELTA), a(a), b(b){
+                explicit ExponentialPotentialFunctor(const double& a, const double& b): a(a), b(b){
                 }
 
-                const double DELTA;
                 const double a;
                 const double b;
 
@@ -207,7 +202,7 @@ class ExponentialPotentialGenerator {
 
                     double potential = - a * exp(- sum);
 
-                    return potential;  // shifted potential
+                    return potential;
                 }
         };
 
@@ -215,8 +210,8 @@ class ExponentialPotentialGenerator {
         }
 
         // Function to create potential
-        Function<T, NDIM> create_exponentialpotential(double DELTA, double a, double b) {
-            ExponentialPotentialFunctor exponential_potential_function(DELTA, a, b);
+        Function<T, NDIM> create_exponentialpotential(double a, double b) {
+            ExponentialPotentialFunctor exponential_potential_function(a, b);
             return FunctionFactory<T, NDIM>(world).functor(exponential_potential_function);  // create potential function
         }
 
@@ -232,10 +227,9 @@ class MorsePotentialGenerator {
             public:
                 MorsePotentialFunctor();
 
-                explicit MorsePotentialFunctor(const double& DELTA, const double& D, const double& a, const double& R): DELTA(DELTA), D(D), a(a), R(R) {
+                explicit MorsePotentialFunctor(const double& D, const double& a, const double& R): D(D), a(a), R(R) {
                 }
 
-                const double DELTA;
                 const double D;
                 const double a;
                 const double R;
@@ -261,8 +255,8 @@ class MorsePotentialGenerator {
         }
 
         // Function to create potential
-        Function<T, NDIM> create_morsepotential(double DELTA, double D, double a, double R){
-            MorsePotentialFunctor morse_potential_function(DELTA, D, a, R);
+        Function<T, NDIM> create_morsepotential(double D, double a, double R){
+            MorsePotentialFunctor morse_potential_function(D, a, R);
             return FunctionFactory<T, NDIM>(world).functor(morse_potential_function);  // create potential function
         }
 
@@ -278,20 +272,20 @@ class PotentialGenerator {
             public:
                 PotentialFunctor();
 
-                explicit PotentialFunctor(const double &DELTA, const double& a): DELTA(DELTA), a(a) {
+                explicit PotentialFunctor(const double& a, const double& b): a(a), b(b) {
                 }
 
-                const double DELTA;
                 const double a;
+                const double b;
 
                 /// explicit construction
                 double operator ()(const Vector<T, NDIM>& r) const override {
                     double potential = 0.0;
                     for(int i = 0; i < NDIM; i++) {
-                        potential += 0.5 * a * (r[i] * r[i]); 
+                        potential += a * (r[i] * r[i]); 
                     }
 
-                    return potential - DELTA;  
+                    return potential - b;  
                 }
         };
 
@@ -299,8 +293,8 @@ class PotentialGenerator {
         }
 
         // Function to create potential
-        Function<T, NDIM> create_potential(double DELTA, double a) {
-            PotentialFunctor potential_function(DELTA, a);
+        Function<T, NDIM> create_potential(double a, double b) {
+            PotentialFunctor potential_function(a, b);
             return FunctionFactory<T, NDIM>(world).functor(potential_function);  // create potential function
         }
 
