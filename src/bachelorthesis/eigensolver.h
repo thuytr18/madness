@@ -180,9 +180,9 @@ class Eigensolver {
 
             for(int iter = 0; iter <= max_iter; iter++) {
                 // TODO: Morse-Potential iterationen plotten
-                //char filename[256];
-                //snprintf(filename, 256, "phi-%1d.dat", N);
-                //plot1D(filename,phi);
+                char filename[256];
+                snprintf(filename, 256, "phi-%1d-%1d.dat", N, iter);
+                plot1D(filename,phi);
                 
                 // Energy cant be positiv
                 // shift potential
