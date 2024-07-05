@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
     const double thresh = 1e-6; // Threshold
     // Number of levels // for harmonic oscillator: 10, for gaussian potential: 5, for double well potential: 4, for exponential potential: 5, for morse potential: 4
-    constexpr int num_levels = 5;
-    constexpr int max_iter = 50; // Maximum number of iterations
+    constexpr int num_levels = 4;
+    constexpr int max_iter = 100; // Maximum number of iterations
     constexpr int NDIM = 1; // Dimension
 
     //-------------------------------------------------------------------------------//
@@ -54,9 +54,9 @@ int main(int argc, char** argv) {
 
     //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
     //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
-    DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
+    //DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
     //ExponentialPotentialGenerator<double, NDIM> exponential_potential_generator(world); // Generator for exponential potential
-    //MorsePotentialGenerator<double, NDIM> morse_potential_generator(world);             // Generator for exponential potential
+    MorsePotentialGenerator<double, NDIM> morse_potential_generator(world);             // Generator for exponential potential
 
     //-------------------------------------------------------------------------------//
 
@@ -87,11 +87,11 @@ int main(int argc, char** argv) {
         }
     }
     
-    Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(5, mu, sigma, 5, mu1, sigma1); // Create the double well potential
+    //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(5, mu, sigma, 5, mu1, sigma1); // Create the double well potential
 
     //Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(10.0, 1); // Create the exponential potential
 
-    //Function<double, NDIM> V = morse_potential_generator.create_morsepotential(5.0, 1.0, 0.75); // Create the morse potential
+    Function<double, NDIM> V = morse_potential_generator.create_morsepotential(5.0, 1.0, 0.75); // Create the morse potential
  
 
     //-------------------------------------------------------------------------------//
