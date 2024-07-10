@@ -164,7 +164,8 @@ int main(int argc, char** argv) {
             plot2D(filename, y[i]);
     }
 
-    //--------------------------------------------------------------------------------//
+
+    //----------Only for comparison--------------------------------------------------------------------------------------------------------//
     
     // calculate the Taylor series of potential
     /*
@@ -248,13 +249,11 @@ int main(int argc, char** argv) {
             plot2D(filename, approximation_y[i]);
     }
     */
+
+    //--------------------------------------------------------------------------------------------------------------------------------------//
+
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
     finalize();
     return 0;
 }
-
-// modell fermionic system as chapter 4. of the bachelor thesis
-// hartree fock solver 
-
-// Title: automatized eigensolver for General One-body Potentials
