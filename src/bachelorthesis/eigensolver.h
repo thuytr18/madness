@@ -55,7 +55,7 @@ class Eigensolver {
 
             // Generate and solve the diagonalized guesses and store them in eigenfunctions (Optimization with BSH Operator)
             for (int i = 0; i < num_levels; i++) {
-                Function<double, NDIM> phi = generate_and_solve(world, V, diagonalized_guesses[i], i, eigenfunctions, max_iter);
+                Function<double, NDIM> phi = optimize(world, V, diagonalized_guesses[i], i, eigenfunctions, max_iter);
                 eigenfunctions.push_back(phi);
             }
 
@@ -78,7 +78,7 @@ class Eigensolver {
 
             // Generate and solve the diagonalized guesses and store them in eigenfunctions (Optimization with BSH Operator)
             for (int i = 0; i < num_levels; i++) {
-                Function<double, NDIM> phi = generate_and_solve(world, V, diagonalized_guesses[i], i, eigenfunctions, max_iter);
+                Function<double, NDIM> phi = optimize(world, V, diagonalized_guesses[i], i, eigenfunctions, max_iter);
                 eigenfunctions.push_back(phi);
             }
 
@@ -166,8 +166,8 @@ class Eigensolver {
         }
 
 
-        // Function to generate and solve for each energy level
-        Function<T, NDIM> generate_and_solve(World& world, Function<T, NDIM>& V, const Function<T, NDIM> guess_function, int N, const std::vector<Function<T, NDIM>>& prev_phi, int max_iter) {
+        // Function to optimize the eigenfunction for each energy level
+        Function<T, NDIM> optimize(World& world, Function<T, NDIM>& V, const Function<T, NDIM> guess_function, int N, const std::vector<Function<T, NDIM>>& prev_phi, int max_iter) {
 
             // Create the initial guess wave function
             Function<T, NDIM> phi = guess_function;
