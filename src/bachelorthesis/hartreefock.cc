@@ -18,6 +18,7 @@
 #include <madness/tensor/tensor.h>
 #include <utility>
 #include <vector>
+#include "hartreefock.h"
 #include "potential.h"
 #include "guesses.h"
 #include "plot.h"
@@ -34,6 +35,8 @@ int main(int argc, char** argv) {
 
     //-------------------------------------------------------------------------------//
     const double thresh = 1e-6; // Threshold
+    constexpr int num_levels = 4;
+    constexpr int max_iter = 100; // Maximum number of iterations
     constexpr int NDIM = 1; // Dimension
 
     //-------------------------------------------------------------------------------//
@@ -77,7 +80,7 @@ int main(int argc, char** argv) {
 
     // Create the potential from the charge density
     ChargeDensityPotential<double, NDIM> charge_density_potential(world);
-    Function<double, NDIM> V = charge_density_potential.create_potential(rho);
+    Function<double, NDIM> V = charge_density_potential.create_potential(charged_rho);
 
     // Plot the potential created from the charge density
     if (NDIM == 1)
@@ -85,10 +88,22 @@ int main(int argc, char** argv) {
     else if (NDIM == 2)
         plot2D("potential2D.dat", V);
 
-    
+    // Create Hartree-Fock solver
+    HartreeFock<double, NDIM> hartree_fock_solver(world);
 
+    // Solve the Hartree-Fock equation
+    std::vector<Function<double, NDIM>> eigenfunctions = hartree_fock_solver.solve(V, num_levels, max_iter);
 
+    // Plot the eigenfunctions
+    for (int i = 0; i < num_levels; i++) {
+        char filename[256];
+        snprintf(filename, 256, "Psi_%1d.dat", i);
 
+        if (NDIM == 1)
+            plot1D(filename, eigenfunctions[i]); 
+        else if (NDIM == 2)
+            plot2D(filename, eigenfunctions[i]);
+    }
 
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
