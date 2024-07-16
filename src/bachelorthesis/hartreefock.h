@@ -26,6 +26,8 @@ using namespace madness;
 template <typename T, int NDIM>
 class HartreeFock {
     public:
+        explicit HartreeFock(World& world) : world(world) {}
+
         // Function to solve the Hartree-Fock equation for a given potential
         std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, int num_levels, int max_iter) {
             // Create the guess generator
@@ -43,11 +45,28 @@ class HartreeFock {
                     plot2D(filename, guesses[i]);
             }
 
+            // store the eigenfunctions in vector eigenfunctions
+            std::vector<Function<double, NDIM>> eigenfunctions;
+
+            for (int i = 0; i < num_levels; i++) {
+                Function<double, NDIM> phi = optimize(world, V, guesses[i], i, eigenfunctions, max_iter);
+                eigenfunctions.push_back(phi);
+            }
+
+            return eigenfunctions;
 
         }
 
         std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guesses, int num_levels, int max_iter) {
+            // store the eigenfunctions in vector eigenfunctions
+            std::vector<Function<T, NDIM>> eigenfunctions;
 
+            for (int i = 0; i < num_levels; i++) {
+                Function<T, NDIM> phi = optimize(world, V, guesses[i], i, eigenfunctions, max_iter);
+                eigenfunctions.push_back(phi);
+            }
+
+            return eigenfunctions;
         }
 
         // Function to calculate the energy
@@ -67,39 +86,28 @@ class HartreeFock {
 
     private:
         World& world;
-
-        Tensor<T> calculate_Hamiltonian(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions) {
+        
+        Function<T, NDIM> calculate_Hamiltonian(World& world, const Function<T, NDIM>& V, const Function<T, NDIM>& phi) {
             // create the Hamiltonian matrix
-            const int num = functions.size();
+    
+            Function<T, NDIM> kin_energy = FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
+            for (int axis = 0; axis < NDIM; axis++) {
+                Derivative<T, NDIM> D = free_space_derivative<T,NDIM>(world, axis); // Derivative operator
 
-            Tensor<T> H(num, num);
+                Function<T, NDIM> d2_x2 = D(D(phi));
 
-            for(int i = 0; i < num; i++) {
-                for(int j = 0; j < num; j++) {
-                    double kin_energy = 0.0;
-                    for (int axis = 0; axis < NDIM; axis++) {
-                        Derivative<T, NDIM> D = free_space_derivative<T,NDIM>(world, axis); // Derivative operator
-
-                        Function<T, NDIM> dx_i = D(functions[i]);
-                        Function<T, NDIM> dx_j = D(functions[j]);
-
-                        kin_energy += 0.5 * inner(dx_i, dx_j);  // (1/2) <dphi/dx | dphi/dx>
-                    }
-                
-                    double pot_energy = inner(functions[i], V * functions[j]); // <phi|V|phi>
-
-                    H(i, j) = kin_energy + pot_energy; // Hamiltonian matrix
-                }
+                kin_energy += 0.5 * d2_x2;
             }
-
-            std::cout << "H: \n" << H << std::endl;
-            return H;
+        
+            Function<T, NDIM> pot_energy = V * phi;
+            
+            return kin_energy + pot_energy;
         }
 
         Function<T, NDIM> calculate_Coulomb(World& world, const std::vector<Function<T, NDIM>>& functions) {
             // calculate the Coulomb Operator
             const int num = functions.size();
-            Function<T, NDIM> sum = functions[0].zero();
+            Function<T, NDIM> sum = FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
 
             for (int i = 0; i < num; i++) {
                 sum += abs(functions[i]) * abs(functions[i]); // sum of the square of the functions |phi_i|^2
@@ -114,7 +122,7 @@ class HartreeFock {
         Function<T, NDIM> calculate_Exchange(World& world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
             // calculate the exchange operator
             const int num = functions.size();
-            Function<T, NDIM> exchange = phi_k.zero();
+            Function<T, NDIM> exchange = FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
 
             for (int l = 0; l < num; l++) {
                 Function<T, NDIM> sum = phi_k * functions[l];           // phi_k * phi_l
@@ -130,11 +138,10 @@ class HartreeFock {
 
         Function<T, NDIM> calculate_Fock(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
             // calculate the Fock operator
-            Tensor<T> H = calculate_Hamiltonian(world, V, functions);
-            Function<T, NDIM> h= H(phi_k);      // H operating on phi_k
-
+            Function<T, NDIM> h = calculate_Hamiltonian(world, V, phi_k);
+            
             Function<T, NDIM> coulomb = calculate_Coulomb(world, functions);
-            Function<T, NDIM> J = coulomb(phi_k);  // Coulomb operator operating on phi_k
+            Function<T, NDIM> J = coulomb * phi_k;  // Coulomb operator operating on phi_k
 
             Function<T, NDIM> exchange = calculate_Exchange(world, functions, phi_k); 
 
@@ -144,10 +151,10 @@ class HartreeFock {
         Function<T, NDIM> optimize(World& world, Function<T, NDIM>& V, const Function<T, NDIM> guess_function, int N, const std::vector<Function<T, NDIM>>& prev_phi, int max_iter) {
             // optimize the guess function
             Function<T, NDIM> phi = guess_function;
-
             phi.scale(1.0 / phi.norm2()); // Normalize initial guess
+            double E = energy(world, phi, V);
 
-            NonlinearSolverND<NDIM> solver;
+            NonlinearSolverND<NDIM> solver; // Nonlinear solver
 
             for (int iter = 0; iter < max_iter; iter++) {
                 
@@ -159,27 +166,28 @@ class HartreeFock {
                 
                 SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, 1.0, 0.001, 1e-7);  
 
-                Function<T, NDIM> r = phi + 2.0 * op(Fock); // the residual
-                T err = r.norm2();
+                Function<T, NDIM> phi_next = phi - 2.0 * op(Fock); // the residual
 
-                // Q = 1 - sum(|phi_prev><phi_prev|) = 1 - |phi_0><phi_0| - |phi_1><phi_1| - ...
-                // Q*|Phi> = |Phi> - |phi_0><phi_0|Phi> - |phi_1><phi_1|Phi> - ...
+                // Normalize phi_next
+                double norm = phi_next.norm2();
+                phi_next.scale(1.0 / norm);
 
-                for (const auto& prev_phi : prev_phi) {
-                    phi -= inner(prev_phi, phi)*prev_phi; 
+                // Orthogonalize phi_next to all previous phi's
+                for (const auto& prev : prev_phi) {
+                    phi_next -= inner(prev, phi_next) * prev;
                 }
+            
+                phi_next.scale(1.0 / phi_next.norm2());
 
-                phi.scale(1.0/phi.norm2());
+                // Calculate energy
+                E = energy(world, phi_next, V);
+                double err = (phi - phi_next).norm2();
 
-                phi = solver.update(phi, r);
-
-                double norm = phi.norm2();
-                phi.scale(1.0/norm);  // phi *= 1.0/norm
-
-                double E = energy(world,phi,V); 
+                // Update phi for the next iteration
+                phi = phi_next;
 
                 if (world.rank() == 0)
-                    print("iteration", iter, "energy", E, "norm", norm, "error",err);
+                    print("iteration", iter, "energy", E, "norm", norm, "error", err);
 
                 if (err < 5e-4) break;
             }
