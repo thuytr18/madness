@@ -57,15 +57,23 @@ int main(int argc, char** argv) {
         }
     }
 
+    // TO DO: rewrite the Potential function
+
     // Create the gaussian potential
-    double a = -2 * (1 / sqrt(2 * constants::pi));  // Integral of normal guassian function is sqrt(2*pi), to get a charge of 2, multiply by 2 / sqrt(2 * pi)
-    Function<double, NDIM> rho = gaussian_potential_generator.create_gaussianpotential(a , mu, sigma);  
+    Function<double, NDIM> rho = gaussian_potential_generator.create_gaussianpotential(1 , mu, sigma);  
+
+    double charge = rho.trace(); // Calculate the charge of the gaussian potential
+    std::cout << "Charge: " << charge << std::endl;
+
+    // charge should be 2.0
+    double a = 2 / charge;  // Integral of normal guassian function is sqrt(2*pi), to get a charge of 2, multiply by 2 / sqrt(2 * pi)
+    Function<double, NDIM> charged_rho = gaussian_potential_generator.create_gaussianpotential(a, mu, sigma); // Create the gaussian potential with charge 2
 
     // Plot the gaussian potential
     if (NDIM == 1)
-        plot1D("rho.dat", rho);
+        plot1D("rho.dat", charged_rho);
     else if (NDIM == 2)
-        plot2D("rho2D.dat", rho);
+        plot2D("rho2D.dat", charged_rho);
 
     // Create the potential from the charge density
     ChargeDensityPotential<double, NDIM> charge_density_potential(world);
@@ -77,7 +85,7 @@ int main(int argc, char** argv) {
     else if (NDIM == 2)
         plot2D("potential2D.dat", V);
 
-
+    
 
 
 
