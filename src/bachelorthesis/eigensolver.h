@@ -179,7 +179,7 @@ class Eigensolver {
             int count_shift = 0; // counter how often the potential was shifted
 
             for(int iter = 0; iter <= max_iter; iter++) {
-                // TODO: Morse-Potential iterationen plotten
+                
                 char filename[256];
                 snprintf(filename, 256, "phi-%1d-%1d.dat", N, iter);
                 plot1D(filename,phi);
