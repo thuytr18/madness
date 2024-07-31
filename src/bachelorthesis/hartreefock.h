@@ -48,10 +48,7 @@ class HartreeFock {
             // store the eigenfunctions in vector eigenfunctions
             std::vector<Function<double, NDIM>> eigenfunctions;
 
-            for (int i = 0; i < num_levels; i++) {
-                Function<double, NDIM> phi = optimize(world, V, guesses[i], i, eigenfunctions, max_iter);
-                eigenfunctions.push_back(phi);
-            }
+            eigenfunctions = optimize(world, V, guesses, max_iter);
 
             return eigenfunctions;
 
@@ -61,10 +58,7 @@ class HartreeFock {
             // store the eigenfunctions in vector eigenfunctions
             std::vector<Function<T, NDIM>> eigenfunctions;
 
-            for (int i = 0; i < num_levels; i++) {
-                Function<T, NDIM> phi = optimize(world, V, guesses[i], i, eigenfunctions, max_iter);
-                eigenfunctions.push_back(phi);
-            }
+            eigenfunctions = optimize(world, V, guesses, max_iter);
 
             return eigenfunctions;
         }
@@ -74,29 +68,28 @@ class HartreeFock {
             double potential_energy = inner(phi, V * phi); // <phi|Vphi> = <phi|V|phi>
             double kinetic_energy = 0.0;
 
-            Derivative<T, NDIM> D = free_space_derivative<T, NDIM>(world, 0); // Derivative operator
+            for (int axis = 0; axis < NDIM; axis++) {
+                Derivative<T, NDIM> D = free_space_derivative<T, NDIM>(world, axis); // Derivative operator
 
-            Function<T, NDIM> dphi = D(phi);
-            kinetic_energy += 0.5 * inner(dphi, dphi);  // (1/2) <dphi/dx | dphi/dx>
+                Function<T, NDIM> dphi = D(phi);
+                kinetic_energy += 0.5 * inner(dphi, dphi);  // (1/2) <dphi/dx | dphi/dx>
+            }
 
             double energy = kinetic_energy + potential_energy;
             return energy;
         }
 
-
     private:
         World& world;
         
-        Function<T, NDIM> calculate_Hamiltonian(World& world, const Function<T, NDIM>& V, const Function<T, NDIM>& phi) {
-            // create the Hamiltonian matrix
-    
+        Function<T, NDIM> calculate_OneBodyHamiltonian(World& world, const Function<T, NDIM>& V, const Function<T, NDIM>& phi) {
             Function<T, NDIM> kin_energy = FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
             for (int axis = 0; axis < NDIM; axis++) {
                 Derivative<T, NDIM> D = free_space_derivative<T,NDIM>(world, axis); // Derivative operator
 
                 Function<T, NDIM> d2_x2 = D(D(phi));
 
-                kin_energy += 0.5 * d2_x2;
+                kin_energy -= 0.5 * d2_x2;
             }
         
             Function<T, NDIM> pot_energy = V * phi;
@@ -104,7 +97,11 @@ class HartreeFock {
             return kin_energy + pot_energy;
         }
 
-        Function<T, NDIM> calculate_Coulomb(World& world, const std::vector<Function<T, NDIM>>& functions) {
+        Function<T, NDIM> calculate_OneBodyPotential(World& world, const Function<T, NDIM>& V, const Function<T, NDIM>& phi) {
+            return V * phi;
+        }
+
+        Function<T, NDIM> calculate_TwoBody(World& world, const std::vector<Function<T, NDIM>>& functions) {
             // calculate the Coulomb Operator
             const int num = functions.size();
             Function<T, NDIM> sum = FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
@@ -113,11 +110,12 @@ class HartreeFock {
                 sum += abs(functions[i]) * abs(functions[i]); // sum of the square of the functions |phi_i|^2
             }
 
-            SeparatedConvolution<T, NDIM> coulomb_op = GaussOperator<NDIM>(world, 1.0);
-            Function<T, NDIM> coulomb = coulomb_op(sum);
+            SeparatedConvolution<T, NDIM> twoBody_op = GaussOperator<NDIM>(world, 1.0);
+            Function<T, NDIM> twoBody = twoBody_op(sum);
 
-            return coulomb;
+            return twoBody;
         }
+
 
         Function<T, NDIM> calculate_Exchange(World& world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
             // calculate the exchange operator
@@ -127,10 +125,10 @@ class HartreeFock {
             for (int l = 0; l < num; l++) {
                 Function<T, NDIM> sum = phi_k * functions[l];           // phi_k * phi_l
 
-                SeparatedConvolution<T, NDIM> coulomb_op = GaussOperator<NDIM>(world, 1.0);
-                Function<T, NDIM> coulomb = coulomb_op(sum);
+                SeparatedConvolution<T, NDIM> twoBody_op = GaussOperator<NDIM>(world, 1.0);
+                Function<T, NDIM> twoBody = twoBody_op(sum);
 
-                exchange += coulomb;
+                exchange += twoBody;
             }
 
             return exchange;
@@ -138,73 +136,159 @@ class HartreeFock {
 
         Function<T, NDIM> calculate_Fock(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
             // calculate the Fock operator
-            Function<T, NDIM> h = calculate_Hamiltonian(world, V, phi_k);
+            Function<T, NDIM> h = calculate_OneBodyHamiltonian(world, V, phi_k);
             
-            Function<T, NDIM> coulomb = calculate_Coulomb(world, functions);
-            Function<T, NDIM> J = coulomb * phi_k;  // Coulomb operator operating on phi_k
+            Function<T, NDIM> twoBody = calculate_TwoBody(world, functions);
+            Function<T, NDIM> J = twoBody * phi_k;  // TwoBody operator operating on phi_k
 
             Function<T, NDIM> exchange = calculate_Exchange(world, functions, phi_k); 
 
             return h + 2.0 * J - exchange;
         }
 
-        Function<T, NDIM> optimize(World& world, Function<T, NDIM>& V, const Function<T, NDIM> guess_function, int N, const std::vector<Function<T, NDIM>>& prev_phi, int max_iter) {
+        Function<T, NDIM> calculate_HFPotential(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
+            // calculate the Fock operator
+            Function<T, NDIM> h = calculate_OneBodyPotential(world, V, phi_k);
+            
+            Function<T, NDIM> twoBody = calculate_TwoBody(world, functions);
+            Function<T, NDIM> J = twoBody * phi_k;  // TwoBody operator operating on phi_k
+
+            Function<T, NDIM> exchange = calculate_Exchange(world, functions, phi_k); 
+
+            return h + 2.0 * J - exchange;
+        }
+
+        std::vector<Function<T, NDIM>> optimize(World& world, Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guess_functions, int max_iter) {
             // optimize the guess function
-            Function<T, NDIM> phi = guess_function;
-            phi.scale(1.0 / phi.norm2()); // Normalize initial guess
-            double E = energy(world, phi, V);
+            std::vector<Function<T, NDIM>> fock_functions;;
 
             NonlinearSolverND<NDIM> solver; // Nonlinear solver
 
-            for (int iter = 0; iter < max_iter; iter++) {
-                
-                char filename[256];
-                snprintf(filename, 256, "phi-%1d-%1d.dat", N, iter);
-                plot1D(filename,phi);
-                
-                Function<T, NDIM> Fock = calculate_Fock(world, V, prev_phi, phi);
-                
-                SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, 1.0, 0.001, 1e-7);  
-
-                Function<T, NDIM> phi_next = phi - 2.0 * op(Fock); // the residual
-
-                // Normalize phi_next
-                double norm = phi_next.norm2();
-                phi_next.scale(1.0 / norm);
-
-                // Orthogonalize phi_next to all previous phi's
-                for (const auto& prev : prev_phi) {
-                    phi_next -= inner(prev, phi_next) * prev;
-                }
-            
-                phi_next.scale(1.0 / phi_next.norm2());
-
-                // Calculate energy
-                E = energy(world, phi_next, V);
-                double err = (phi - phi_next).norm2();
-
-                // Update phi for the next iteration
-                phi = phi_next;
-
-                if (world.rank() == 0)
-                    print("iteration", iter, "energy", E, "norm", norm, "error", err);
-
-                if (err < 5e-4) break;
+            for (int i = 0; i < guess_functions.size(); i++) {
+                    // calculate the Fock operator
+                    Function<T, NDIM> fock = calculate_Fock(world, V, guess_functions, guess_functions[i]);
+                    fock_functions.push_back(fock);
             }
 
-            char filename[256];
-            snprintf(filename, 256, "phi-%1d.dat", N);
+            for (int iter = 0; iter < max_iter; iter++) {
+                std::vector<Function<T, NDIM>> eigenfunctions = fock_functions;
+                
+                for (int i = 0; i < eigenfunctions.size(); i++) {
+                    // plot the guess functions
+                    char filename[256];
+                    snprintf(filename, 256, "phi-%1d-%1d.dat", i, iter);
+                    plot1D(filename, eigenfunctions[i]);
+                }
 
-            if (NDIM == 1)
-                plot1D(filename, phi);
-            else if (NDIM == 2)
-                plot2D(filename,phi);
+                // Optimize every guessfunction with HF potential operator
+                for (int i = 0; i < eigenfunctions.size(); i++) {
+                    Function<T, NDIM> HF = calculate_HFPotential(world, V, eigenfunctions, eigenfunctions[i]);
 
-            print("Final energy without shift: ", E);
+                    SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, 1.0, 0.001, 1e-7);   
+                    
+                    // fock_functions[i] = - 2.0 * op(HF); 
+                    Function<T, NDIM> r = eigenfunctions[i] + 2.0 * op(HF); // the residual
+                    double err = r.norm2();
 
-            return phi;
+                    // Orthogonalize fock_functions[i] to all previous fock_functions
+                    for (const auto& phi : eigenfunctions) {
+                        eigenfunctions[i] -= inner(phi, eigenfunctions[i])*phi; 
+                    }
+
+                    eigenfunctions[i].scale(1.0/eigenfunctions[i].norm2());
+
+                    eigenfunctions[i] = solver.update(eigenfunctions[i], r);
+                }             
+
+                std::vector<Function<T, NDIM>> fock_holder;
+                for (int i = 0; i < eigenfunctions.size(); i++) {
+                    // calculate the Fock operator
+                    Function<T, NDIM> fock = calculate_Fock(world, V, eigenfunctions, eigenfunctions[i]);
+                    fock_holder.push_back(fock);
+                }
+                eigenfunctions = fock_holder;
+
+                std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> diagonalized = diagonalize(world, eigenfunctions, V);
+                std::cout << "Diagonalize" << std::endl;
+                eigenfunctions = diagonalized.second;
+
+
+                std::vector<Function<T, NDIM>> err = eigenfunctions - fock_functions;
+
+                double sum = 0.0;
+                for (int i = 0; i < eigenfunctions.size(); i++) {
+                    sum += err[i].norm2() * err[i].norm2();
+                }
+                double error = sqrt(sum);
+
+                fock_functions = eigenfunctions;
+
+                if (world.rank() == 0)
+                    print("iteration", iter, "error", error);
+
+                if (error < 5e-4) break;
+            }
+                
+            return fock_functions;
         }
          
+         // Function to calculate the Hamiltonian matrix, Overlap matrix and Diagonal matrix
+        std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& V){
+            const int num = functions.size();
+            
+            auto H = Tensor<T>(num, num); // Hamiltonian matrix
+            auto overlap = Tensor<T>(num, num); // Overlap matrix
+            auto diag_matrix = Tensor<T>(num, num); // Diagonal matrix
+
+            // Calculate the Hamiltonian matrix
+            
+            for(int i = 0; i < num; i++) {
+                auto energy1 = energy(world, functions[i], V);
+                std::cout << energy1 << std::endl;
+                for(int j = 0; j < num; j++) {
+                    double kin_energy = 0.0;
+                    for (int axis = 0; axis < NDIM; axis++) {
+                        Derivative<T, NDIM> D = free_space_derivative<T,NDIM>(world, axis); // Derivative operator
+
+                        Function<T, NDIM> dx_i = D(functions[i]);
+                        Function<T, NDIM> dx_j = D(functions[j]);
+
+                        kin_energy += 0.5 * inner(dx_i, dx_j);  // (1/2) <dphi/dx | dphi/dx>
+                    }
+                
+                    double pot_energy = inner(functions[i], V * functions[j]); // <phi|V|phi>
+
+                    H(i, j) = kin_energy + pot_energy; // Hamiltonian matrix
+                }
+            }
+            std::cout << "H: \n" << H << std::endl;
+
+            // Calculate the Overlap matrix
+            overlap = matrix_inner(world, functions, functions);
+
+            // Calculate the Diagonal matrix
+            Tensor<T> U;
+            Tensor<T> evals;
+            // sygvp is a function to solve the generalized eigenvalue problem HU = SUW where S is the overlap matrix and W is the diagonal matrix of eigenvalues of H
+            // The eigenvalues are stored in evals and the eigenvectors are stored in U
+            sygvp(world, H, overlap, 1, U, evals);
+            
+            diag_matrix.fill(0.0);
+            for(int i = 0; i < num; i++) {
+                diag_matrix(i, i) = evals(i); // Set the diagonal elements
+            }
+
+            std::cout << "dia_matrix: \n" << diag_matrix << std::endl;
+
+            std::vector<Function<T, NDIM>> y;
+
+            // y = U * functions
+            y = transform(world, functions, U);
+            
+            // std::cout << "U matrix: \n" << U << std::endl;
+            // std::cout << "evals: \n" << evals << std::endl;
+            return std::make_pair(evals, y);
+        }
 };
 
 #endif 
