@@ -95,10 +95,12 @@ class Eigensolver {
             double potential_energy = inner(phi, V * phi); // <phi|Vphi> = <phi|V|phi>
             double kinetic_energy = 0.0;
 
-            Derivative<T, NDIM> D = free_space_derivative<T, NDIM>(world, 0); // Derivative operator
+            for (int axis = 0; axis < NDIM; axis++) {
+                Derivative<T, NDIM> D = free_space_derivative<T, NDIM>(world, axis); // Derivative operator
 
-            Function<T, NDIM> dphi = D(phi);
-            kinetic_energy += 0.5 * inner(dphi, dphi);  // (1/2) <dphi/dx | dphi/dx>
+                Function<T, NDIM> dphi = D(phi);
+                kinetic_energy += 0.5 * inner(dphi, dphi);  // (1/2) <dphi/dx | dphi/dx>
+            }
 
             double energy = kinetic_energy + potential_energy;
             return energy;
