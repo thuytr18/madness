@@ -86,7 +86,7 @@ class GaussianPotentialGenerator {
                         }
                     }
 
-                    double potential = - a * exp(- 0.5 * sum);
+                    double potential = a * exp(- 0.5 * sum);
 
                     return potential; 
                 }
@@ -141,7 +141,7 @@ class DoubleWellPotentialGenerator {
                         }
                     }
 
-                    double potential1 = - a * exp(- 0.5 * sum1);
+                    double potential1 = a * exp(- 0.5 * sum1);
 
                     Vector<T, NDIM> diff2;
                     for (int i = 0; i < NDIM; i++) {
@@ -157,7 +157,7 @@ class DoubleWellPotentialGenerator {
                         }
                     }
 
-                    double potential2 = - b * exp(- 0.5 * sum2);
+                    double potential2 = b * exp(- 0.5 * sum2);
 
                     return potential1 + potential2;
                 }
@@ -200,7 +200,7 @@ class ExponentialPotentialGenerator {
                     
                     sum = sqrt(sum);
 
-                    double potential = - a * exp(- sum);
+                    double potential = a * exp(- sum);
 
                     return potential;
                 }
