@@ -210,23 +210,24 @@ class HartreeFock {
 
                 std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> diagonalized = diagonalize(world, eigenfunctions, V);
                 std::cout << "Diagonalize" << std::endl;
-                eigenfunctions = diagonalized.second;
+                std::vector<Function<T, NDIM>> y = diagonalized.second;
 
+                std::cout << "size y " << y.size() << std::endl;
+                std::cout << "size fock_functions " << fock_functions.size() << std::endl;
 
-                std::vector<Function<T, NDIM>> err = eigenfunctions - fock_functions;
-
-                double sum = 0.0;
-                for (int i = 0; i < eigenfunctions.size(); i++) {
-                    sum += err[i].norm2() * err[i].norm2();
+                std::vector<double> err(y.size());
+                for (size_t i = 0; i < y.size(); i++) {
+                    err[i] = std::abs(y[i].norm2() - fock_functions[i].norm2());
                 }
-                double error = sqrt(sum);
 
-                fock_functions = eigenfunctions;
+                double error = *std::max_element(err.begin(), err.end());
+                
+                fock_functions = y;
 
                 if (world.rank() == 0)
                     print("iteration", iter, "error", error);
 
-                if (error < 5e-4) break;
+                if (error < 1e-6) break;
             }
                 
             return fock_functions;
