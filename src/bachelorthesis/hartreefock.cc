@@ -35,9 +35,17 @@ int main(int argc, char** argv) {
 
     //-------------------------------------------------------------------------------//
     const double thresh = 1e-6; // Threshold
-    constexpr int num_levels = 4;
+    const double charge = -2.0; // Charge
+    //const int num_levels = std::abs((int) charge / 2); // Number of levels
+    const int num_levels = 3; // Number of levels
     constexpr int max_iter = 100; // Maximum number of iterations
     constexpr int NDIM = 1; // Dimension
+
+    std::cout << "Number of levels: " << num_levels << std::endl;
+
+    //-------------------------------------------------------------------------------//
+    // Create the operator
+    SeparatedConvolution<double, NDIM> op = GaussOperator<NDIM>(world, 1.0);
 
     //-------------------------------------------------------------------------------//
     // Set the defaults
@@ -47,6 +55,7 @@ int main(int argc, char** argv) {
     FunctionDefaults<NDIM>::set_cubic_cell(-L, L);  // 1D cubic cell
 
     //-------------------------------------------------------------------------------//
+
     // Generator for gaussian potential
     GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);      
      
@@ -60,28 +69,37 @@ int main(int argc, char** argv) {
         }
     }
 
-    // TO DO: rewrite the Potential function
+    double a = -20.0; // Scaling factor
 
     // Create the gaussian potential
-    Function<double, NDIM> rho = gaussian_potential_generator.create_gaussianpotential(1 , mu, sigma);  
-
-    double charge = rho.trace(); // Calculate the charge of the gaussian potential
-    std::cout << "Charge: " << charge << std::endl;
-
-    // charge should be 2.0
-    double a = 2 / charge;  // Integral of normal guassian function is sqrt(2*pi), to get a charge of 2, multiply by 2 / sqrt(2 * pi)
-    Function<double, NDIM> charged_rho = gaussian_potential_generator.create_gaussianpotential(a, mu, sigma); // Create the gaussian potential with charge 2
+    Function<double, NDIM> rho = gaussian_potential_generator.create_gaussianpotential(a, mu, sigma);
+    double charge_rho = rho.trace(); // Calculate the charge of the gaussian potential
+    std::cout << "Charge of rho: " << charge_rho << std::endl;
 
     // Plot the gaussian potential
     if (NDIM == 1)
-        plot1D("rho.dat", charged_rho);
+        plot1D("rho.dat", rho);
     else if (NDIM == 2)
-        plot2D("rho2D.dat", charged_rho);
+        plot2D("rho2D.dat", rho);
+
+    double b = a * (charge / charge_rho) ;  // Integral of normal guassian function is sqrt(2*pi), to get a charge of 2, multiply by 2 / sqrt(2 * pi)
+    // std::cout << "Scaling factor: " << b << std::endl;
+
+    Function<double, NDIM> charged_rho = gaussian_potential_generator.create_gaussianpotential(b, mu, sigma); // Create the gaussian potential with charge 2
+    charge_rho = charged_rho.trace(); // Calculate the charge of the charged gaussian potential
+    std::cout << "Charge of charged rho: " << charge_rho << std::endl;
+
+    // Plot the gaussian potential
+    if (NDIM == 1)
+        plot1D("charged_rho.dat", charged_rho);
+    else if (NDIM == 2)
+        plot2D("charged_rho2D.dat", charged_rho);
 
     // Create the potential from the charge density
     ChargeDensityPotential<double, NDIM> charge_density_potential(world);
-    Function<double, NDIM> V = charge_density_potential.create_potential(charged_rho);
 
+    Function<double, NDIM> V = charge_density_potential.create_potential(charged_rho, charge, op);
+    
     // Plot the potential created from the charge density
     if (NDIM == 1)
         plot1D("potential.dat", V);
@@ -92,7 +110,7 @@ int main(int argc, char** argv) {
     HartreeFock<double, NDIM> hartree_fock_solver(world);
 
     // Solve the Hartree-Fock equation
-    std::vector<Function<double, NDIM>> eigenfunctions = hartree_fock_solver.solve(V, num_levels, max_iter);
+    std::vector<Function<double, NDIM>> eigenfunctions = hartree_fock_solver.solve(V, num_levels, max_iter, op);
 
     // Plot the eigenfunctions
     for (int i = 0; i < num_levels; i++) {
