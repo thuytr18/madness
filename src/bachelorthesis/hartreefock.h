@@ -8,6 +8,7 @@
 #include <madness/mra/mra.h>
 #include <madness/mra/function_interface.h>
 #include <madness/mra/nonlinsol.h>
+#include <madness/mra/operator.h>
 #include <madness/mra/vmra.h>
 #include <madness/tensor/tensor.h>
 #include <madness/tensor/tensor_lapack.h>
@@ -29,7 +30,7 @@ class HartreeFock {
         explicit HartreeFock(World& world) : world(world) {}
 
         // Function to solve the Hartree-Fock equation for a given potential
-        std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, int num_levels, int max_iter) {
+        std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, int num_levels, int max_iter, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // Create the guess generator
             GuessGenerator<double, NDIM> guess_generator(world);              // Guess generator for all potentials
             // Create the guess functions
@@ -47,18 +48,18 @@ class HartreeFock {
 
             // store the eigenfunctions in vector eigenfunctions
             std::vector<Function<double, NDIM>> eigenfunctions;
-
-            eigenfunctions = optimize(world, V, guesses, max_iter);
+            std::cout << "Start optimization" << std::endl;
+            eigenfunctions = optimize(world, V, guesses, max_iter, twoBody_op);
 
             return eigenfunctions;
 
         }
 
-        std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guesses, int num_levels, int max_iter) {
+        std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guesses, int num_levels, int max_iter, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // store the eigenfunctions in vector eigenfunctions
             std::vector<Function<T, NDIM>> eigenfunctions;
-
-            eigenfunctions = optimize(world, V, guesses, max_iter);
+            std::cout << "Start optimization" << std::endl;
+            eigenfunctions = optimize(world, V, guesses, max_iter, twoBody_op);
 
             return eigenfunctions;
         }
@@ -101,7 +102,7 @@ class HartreeFock {
             return V * phi;
         }
 
-        Function<T, NDIM> calculate_TwoBody(World& world, const std::vector<Function<T, NDIM>>& functions) {
+        Function<T, NDIM> calculate_TwoBody(World& world, const std::vector<Function<T, NDIM>>& functions, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // calculate the Coulomb Operator
             const int num = functions.size();
             Function<T, NDIM> sum = FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
@@ -110,14 +111,14 @@ class HartreeFock {
                 sum += abs(functions[i]) * abs(functions[i]); // sum of the square of the functions |phi_i|^2
             }
 
-            SeparatedConvolution<T, NDIM> twoBody_op = GaussOperator<NDIM>(world, 1.0);
+            //SeparatedConvolution<T, NDIM> twoBody_op = GaussOperator<NDIM>(world, 1.0);
             Function<T, NDIM> twoBody = twoBody_op(sum);
 
             return twoBody;
         }
 
 
-        Function<T, NDIM> calculate_Exchange(World& world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
+        Function<T, NDIM> calculate_Exchange(World& world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // calculate the exchange operator
             const int num = functions.size();
             Function<T, NDIM> exchange = FunctionFactory<T, NDIM>(world).functor([] (const Vector<T, NDIM>& r) {return 0.0;} );
@@ -125,7 +126,7 @@ class HartreeFock {
             for (int l = 0; l < num; l++) {
                 Function<T, NDIM> sum = phi_k * functions[l];           // phi_k * phi_l
 
-                SeparatedConvolution<T, NDIM> twoBody_op = GaussOperator<NDIM>(world, 1.0);
+                //SeparatedConvolution<T, NDIM> twoBody_op = GaussOperator<NDIM>(world, 1.0);
                 Function<T, NDIM> twoBody = twoBody_op(sum);
 
                 exchange += twoBody;
@@ -134,31 +135,31 @@ class HartreeFock {
             return exchange;
         }
 
-        Function<T, NDIM> calculate_Fock(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
+        Function<T, NDIM> calculate_Fock(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // calculate the Fock operator
             Function<T, NDIM> h = calculate_OneBodyHamiltonian(world, V, phi_k);
             
-            Function<T, NDIM> twoBody = calculate_TwoBody(world, functions);
+            Function<T, NDIM> twoBody = calculate_TwoBody(world, functions, twoBody_op);
             Function<T, NDIM> J = twoBody * phi_k;  // TwoBody operator operating on phi_k
 
-            Function<T, NDIM> exchange = calculate_Exchange(world, functions, phi_k); 
+            Function<T, NDIM> exchange = calculate_Exchange(world, functions, phi_k, twoBody_op); 
 
             return h + 2.0 * J - exchange;
         }
 
-        Function<T, NDIM> calculate_HFPotential(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k) {
+        Function<T, NDIM> calculate_HFPotential(World& world, const Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& phi_k, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // calculate the Fock operator
             Function<T, NDIM> h = calculate_OneBodyPotential(world, V, phi_k);
             
-            Function<T, NDIM> twoBody = calculate_TwoBody(world, functions);
+            Function<T, NDIM> twoBody = calculate_TwoBody(world, functions, twoBody_op);
             Function<T, NDIM> J = twoBody * phi_k;  // TwoBody operator operating on phi_k
 
-            Function<T, NDIM> exchange = calculate_Exchange(world, functions, phi_k); 
+            Function<T, NDIM> exchange = calculate_Exchange(world, functions, phi_k, twoBody_op); 
 
             return h + 2.0 * J - exchange;
         }
 
-        std::vector<Function<T, NDIM>> optimize(World& world, Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guess_functions, int max_iter) {
+        std::vector<Function<T, NDIM>> optimize(World& world, Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guess_functions, int max_iter, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // optimize the guess function
             std::vector<Function<T, NDIM>> fock_functions;;
 
@@ -166,7 +167,8 @@ class HartreeFock {
 
             for (int i = 0; i < guess_functions.size(); i++) {
                     // calculate the Fock operator
-                    Function<T, NDIM> fock = calculate_Fock(world, V, guess_functions, guess_functions[i]);
+                    std::cout << "Calculate Fock " << i << std::endl;
+                    Function<T, NDIM> fock = calculate_Fock(world, V, guess_functions, guess_functions[i], twoBody_op);
                     fock_functions.push_back(fock);
             }
 
@@ -180,30 +182,39 @@ class HartreeFock {
                     plot1D(filename, eigenfunctions[i]);
                 }
 
+                std::cout << "Size of eigenfunctions: " << eigenfunctions.size() << std::endl;
+                std::cout << "Size of fock_functions: " << fock_functions.size() << std::endl;
+                
                 // Optimize every guessfunction with HF potential operator
                 for (int i = 0; i < eigenfunctions.size(); i++) {
-                    Function<T, NDIM> HF = calculate_HFPotential(world, V, eigenfunctions, eigenfunctions[i]);
+                    std::cout << "Calculate HF " << i << std::endl;
+                    Function<T, NDIM> HF = calculate_HFPotential(world, V, eigenfunctions, eigenfunctions[i], twoBody_op);
 
                     SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, 1.0, 0.001, 1e-7);   
                     
                     // fock_functions[i] = - 2.0 * op(HF); 
                     Function<T, NDIM> r = eigenfunctions[i] + 2.0 * op(HF); // the residual
+                    std::cout << "Calculate residual " << i << std::endl;
                     double err = r.norm2();
 
                     // Orthogonalize fock_functions[i] to all previous fock_functions
-                    for (const auto& phi : eigenfunctions) {
-                        eigenfunctions[i] -= inner(phi, eigenfunctions[i])*phi; 
+                    // for (const auto& phi : eigenfunctions) {
+                    //     eigenfunctions[i] -= inner(phi, eigenfunctions[i])*phi; 
+                    // }
+                    for (int j = 0; j < i; j++) {
+                        eigenfunctions[i] -= inner(eigenfunctions[j], eigenfunctions[i]) * eigenfunctions[j];
                     }
 
                     eigenfunctions[i].scale(1.0/eigenfunctions[i].norm2());
-
+                    std::cout << "Orthogonalize " << i << std::endl;
                     eigenfunctions[i] = solver.update(eigenfunctions[i], r);
+                    std::cout << "Update " << i << std::endl;
                 }             
 
                 std::vector<Function<T, NDIM>> fock_holder;
                 for (int i = 0; i < eigenfunctions.size(); i++) {
                     // calculate the Fock operator
-                    Function<T, NDIM> fock = calculate_Fock(world, V, eigenfunctions, eigenfunctions[i]);
+                    Function<T, NDIM> fock = calculate_Fock(world, V, eigenfunctions, eigenfunctions[i], twoBody_op);
                     fock_holder.push_back(fock);
                 }
                 eigenfunctions = fock_holder;
