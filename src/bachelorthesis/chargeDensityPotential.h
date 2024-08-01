@@ -16,6 +16,7 @@
 #include <madness/world/vector.h>
 #include <madness/world/world.h>
 #include <ostream>
+#include <string>
 #include <vector>
 
 using namespace madness;
@@ -26,31 +27,28 @@ using namespace madness;
 
 template <typename T, int NDIM>
 class ChargeDensityPotential {
-    public: 
+    public:
         explicit ChargeDensityPotential(World& world) : world(world) {}
 
-        Function<T, NDIM> create_potential(Function<T, NDIM> charge_density) {
+        Function<T, NDIM> create_potential(Function<T, NDIM> charge_density, double charge, SeparatedConvolution<T, NDIM>& op) {
             // Check if the charge density is correct
             // charge density should have a charge of 2.0 and a tolerance of 1e-6
-            if (!check_charge(charge_density, 2.0, 1e-6)) {
-                throw std::runtime_error("Charge density should have a charge of 2.0.");
+            std::cout << "Checking charge density" << std::endl;
+            if (!check_charge(charge_density, charge, 1e-6)) {
+                std::cout << "Charge Density is incorrect" << std::endl;
             }
 
-            // Create the potential with the coulomb potential from the charge density
-            SeparatedConvolution<T, NDIM> coulomb_op = GaussOperator<NDIM>(world, 1.0);
-            Function<T, NDIM> potential = coulomb_op(charge_density);
-
-            return potential;
+            // Create the potential with the given potential from the charge density
+            // potential should be negative
+            std::cout << "Charge is correct. Creating potential from charge density" << std::endl;
+            
+            return op(charge_density);
         }
 
     private:
         World& world;
 
         bool check_charge(Function<T, NDIM> charge_density, double c, double tol) {
-
-            std::cout << "Checking charge density" << std::endl;
-            std::cout << charge_density.trace() << std::endl;
-
             double charge = charge_density.trace();
 
             if (std::abs(charge - c) < tol) {
