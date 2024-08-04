@@ -36,8 +36,8 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
     const double thresh = 1e-6; // Threshold
     const double charge = -2.0; // Charge
-    //const int num_levels = std::abs((int) charge / 2); // Number of levels
-    const int num_levels = 3; // Number of levels
+    const int num_levels = std::abs((int) charge / 2); // Number of levels
+    //const int num_levels = 3; // Number of levels
     constexpr int max_iter = 100; // Maximum number of iterations
     constexpr int NDIM = 1; // Dimension
 
@@ -45,8 +45,9 @@ int main(int argc, char** argv) {
 
     //-------------------------------------------------------------------------------//
     // Create the operator
-    SeparatedConvolution<double, NDIM> op = GaussOperator<NDIM>(world, 1.0);
+    SeparatedConvolution<double, NDIM> op = GaussOperator<NDIM>(world, 1000.0);
 
+    //SeparatedConvolution<double, NDIM> op = BSHOperator<NDIM>(world, 0.0, 0.001, 1e-7);   
     //-------------------------------------------------------------------------------//
     // Set the defaults
 
@@ -69,7 +70,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    double a = -20.0; // Scaling factor
+    double a = -1.0; // Scaling factor
 
     // Create the gaussian potential
     Function<double, NDIM> rho = gaussian_potential_generator.create_gaussianpotential(a, mu, sigma);
