@@ -302,4 +302,47 @@ class PotentialGenerator {
         World& world;
 };
 
+template<typename T, std::size_t NDIM>
+class HydrogenPotentialGenerator {
+    public:
+        class HydrogenPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+            public:
+                HydrogenPotentialFunctor();
+
+                explicit HydrogenPotentialFunctor(const Vector<T, NDIM>& R): R(R) {
+                }
+
+                const Vector<T, NDIM> R;
+
+                /// explicit construction
+                double operator ()(const Vector<T, NDIM>& r) const override {
+                    Vector<T, NDIM> diff = r - R;
+
+                    double sum = 0.0;
+                    for(int i = 0; i < NDIM; i++) {
+                        sum += diff[i] * diff[i]; 
+                    }
+                    
+                    sum = sqrt(sum);
+
+                    double potential = -2 / sum;
+
+                    return potential; 
+                }
+            };
+
+            explicit HydrogenPotentialGenerator(World& world) : world(world) {
+            }
+
+            // Function to create potential
+            Function<T, NDIM> create_hydrogenpotential(const Vector<T,NDIM>& R){
+                HydrogenPotentialFunctor hydrogen_potential_function(R);
+                return FunctionFactory<T, NDIM>(world).functor(hydrogen_potential_function);  // create potential function
+            }
+
+    private:
+        World& world;
+};
+
+
 #endif 
