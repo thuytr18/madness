@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
     //-------------------------------------------------------------------------------//
     const double thresh = 1e-6; // Threshold
-    constexpr int max_iter = 100; // Maximum number of iterations
+    constexpr int max_iter = 3; // Maximum number of iterations
     constexpr int num_levels = 1; // Number of levels
     constexpr int NDIM = 3; // Dimension
 
@@ -59,6 +59,8 @@ int main(int argc, char** argv) {
 
     Function<double, NDIM> V = hydrogen_potential_generator.create_hydrogenpotential(R);
 
+    plot3D("potential.dat", V);
+
     // Generator for initial guess
     std::vector<Function<double, NDIM>> guesses;
     // Generator for gaussian potential
@@ -76,6 +78,7 @@ int main(int argc, char** argv) {
     double a = 1;
 
     Function<double, NDIM> initial_guess = gaussian_potential_generator.create_gaussianpotential(a, mu, sigma);
+    plot3D("guess.dat", initial_guess);
     guesses.push_back(initial_guess);
 
     //-------------------------------------------------------------------------------//
