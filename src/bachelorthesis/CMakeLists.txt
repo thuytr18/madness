@@ -1,7 +1,7 @@
 # src/bachelorthesis
 
 set(EXAMPLE_SOURCES
-    1dharmonic eigensolver hartreefock)
+    1dharmonic eigensolver hartreefock hartreefock3D)
  
 if(LIBXC_FOUND)
   list(APPEND EXAMPLE_SOURCES hefxc)
