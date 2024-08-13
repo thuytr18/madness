@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <madness/mra/mra.h>
 #include <madness/mra/function_interface.h>
@@ -12,6 +13,7 @@
 #include <madness/mra/vmra.h>
 #include <madness/tensor/tensor.h>
 #include <madness/tensor/tensor_lapack.h>
+#include <madness/tensor/tensorexcept.h>
 #include <madness/world/vector.h>
 #include <madness/world/world.h>
 #include <ostream>
@@ -55,7 +57,7 @@ class HartreeFock {
 
         }
 
-        std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guesses, int num_levels, int max_iter, SeparatedConvolution<T, NDIM>& twoBody_op) {
+        std::vector<Function<T, NDIM>> solve(Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guesses, int max_iter, SeparatedConvolution<T, NDIM>& twoBody_op) {
             // store the eigenfunctions in vector eigenfunctions
             std::vector<Function<T, NDIM>> eigenfunctions;
             std::cout << "Start optimization" << std::endl;
@@ -160,96 +162,81 @@ class HartreeFock {
         }
 
         std::vector<Function<T, NDIM>> optimize(World& world, Function<T, NDIM>& V, const std::vector<Function<T, NDIM>>& guess_functions, int max_iter, SeparatedConvolution<T, NDIM>& twoBody_op) {
-            // optimize the guess function
-            std::vector<Function<T, NDIM>> fock_functions;;
-
-            NonlinearSolverND<NDIM> solver; // Nonlinear solver
-
-            // for (int i = 0; i < guess_functions.size(); i++) {
-            //         // calculate the Fock operator
-            //         std::cout << "Calculate Fock " << i << std::endl;
-            //         Function<T, NDIM> fock = calculate_Fock(world, V, guess_functions, guess_functions[i], twoBody_op);
-            //         fock_functions.push_back(fock);
-            // }
-
-            std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> diagonalized = diagonalize(world, guess_functions, V);
+            // first: diagonalize the guess functions
+            std::pair<Tensor<double>, std::vector<Function<double, NDIM>>> diagonalized = diagonalize(world, guess_functions, V, twoBody_op);
             Tensor<T> evals  = diagonalized.first;
-            fock_functions = diagonalized.second;
+            std::vector<Function<T, NDIM>> fock_functions = diagonalized.second;
 
+            // second: optimize the guess functions
             for (int iter = 0; iter < max_iter; iter++) {
+                // make a new copy of the fock functions to store the optimized functions
                 std::vector<Function<T, NDIM>> eigenfunctions = fock_functions;
-                
+
+                // plot the eigenfunctions
+                // for (int i = 0; i < eigenfunctions.size(); i++) {
+                //     // plot the guess functions
+                //     char filename[256];
+                //     snprintf(filename, 256, "phi-%1d-%1d.dat", i, iter);
+                //     plot1D(filename, eigenfunctions[i]);
+                // }
+
+                // calculate the Fock operator for each eigenfunction
+                std::vector<Function<T, NDIM>> fock_operators;
                 for (int i = 0; i < eigenfunctions.size(); i++) {
-                    // plot the guess functions
-                    char filename[256];
-                    snprintf(filename, 256, "phi-%1d-%1d.dat", i, iter);
-                    plot1D(filename, eigenfunctions[i]);
+                    Function<T, NDIM> fock = calculate_Fock(world, V, fock_functions, eigenfunctions[i], twoBody_op);
+                    fock_operators.push_back(fock);
                 }
 
-                std::cout << "Size of eigenfunctions: " << eigenfunctions.size() << std::endl;
-                std::cout << "Size of fock_functions: " << fock_functions.size() << std::endl;
-                
-                std::vector<Function<T, NDIM>> HF_holder;
-                for (int i = 0; i < eigenfunctions.size(); i++) {
-                    Function<T, NDIM> HF = calculate_HFPotential(world, V, eigenfunctions, eigenfunctions[i], twoBody_op);
-                    HF_holder.push_back(HF);
-                }
+                std::vector<double> error;
+                std::vector<Function<T, NDIM>> new_eigenfunctions;
+                // optimize each eigenfunction
+                for (int i = 0; i < fock_operators.size(); i++) {
 
-                std::vector<Function<T, NDIM>> new_functions;
-                std::vector<T> error;
-                // Optimize every guessfunction with HF potential operator
-                for (int i = 0; i < HF_holder.size(); i++) {
-                    
-                    SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*evals[i]), 0.001, 1e-7);   
-                    Function<T, NDIM> new_HF_function = - 2.0 * op(HF_holder[i]);
+                    SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*evals[i]), 0.001, 1e-7); 
+                    Function<T, NDIM> new_function = - 2.0 * op(fock_operators[i]);
 
-                    // fock_functions[i] = - 2.0 * op(HF); 
-                    Function<T, NDIM> r = eigenfunctions[i] - new_HF_function; // the residual
-                    std::cout << "Calculate residual " << i << std::endl;
-                    double err = r.norm2();
+                    // calculate the residual
+                    Function<T, NDIM> residual = eigenfunctions[i] - new_function;
+                    double err = residual.norm2();
 
-                    std::cout << "Update " << i << std::endl;
-                    new_functions.push_back(new_HF_function);
+                    // save the error in vector error
                     error.push_back(err);
-                }             
-
-                eigenfunctions = new_functions;
-                std::cout << "Diagonalize" << std::endl;
-
-                diagonalized = diagonalize(world, eigenfunctions, V);
-                std::cout << "Diagonalize" << std::endl;
-                std::vector<Function<T, NDIM>> y = diagonalized.second;
-                
-                double max_err = 0.0;
-                for (int i = 0; i < error.size(); i++) {
-                    if (max_err < error[i]) {
-                        max_err = error[i];
-                    }
+                    new_eigenfunctions.push_back(new_function);
                 }
-                fock_functions = y;
+
+                eigenfunctions = new_eigenfunctions;
+                diagonalized = diagonalize(world, eigenfunctions, V, twoBody_op);
+                evals = diagonalized.first;
+                fock_functions = diagonalized.second;
+
+                double max_err = 0.0;
+                for (double i : error) {
+                    max_err = std::max(max_err, i);
+                }
 
                 if (world.rank() == 0)
-                    print("iteration", iter,"energy", evals, "error", max_err);
+                    print("iteration", iter, "error", max_err);
 
                 if (max_err < 1e-6) break;
             }
-                
+
             return fock_functions;
         }
          
          // Function to calculate the Hamiltonian matrix, Overlap matrix and Diagonal matrix
-        std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& VHF){
+        std::pair<Tensor<T>, std::vector<Function<T, NDIM>>> diagonalize(World &world, const std::vector<Function<T, NDIM>>& functions, const Function<T, NDIM>& V, SeparatedConvolution<T, NDIM>& twoBody_op) {
             const int num = functions.size();
             
-            auto H = Tensor<T>(num, num); // Hamiltonian matrix
-            auto overlap = Tensor<T>(num, num); // Overlap matrix
-            auto diag_matrix = Tensor<T>(num, num); // Diagonal matrix
+            Tensor<T> H = Tensor<T>(num, num); // Hamiltonian matrix
+            Tensor<T> overlap = Tensor<T>(num, num); // Overlap matrix
+            Tensor<T> diag_matrix = Tensor<T>(num, num); // Diagonal matrix
 
             // Calculate the Hamiltonian matrix
             // TODO: HAMILTONIAN
+
             for(int i = 0; i < num; i++) {
                 auto energy1 = energy(world, functions[i], V);
-                std::cout << energy1 << std::endl;
+                std::cout << "Energy" << energy1 << std::endl;
                 for(int j = 0; j < num; j++) {
                     double kin_energy = 0.0;
                     for (int axis = 0; axis < NDIM; axis++) {
@@ -260,9 +247,12 @@ class HartreeFock {
 
                         kin_energy += 0.5 * inner(dx_i, dx_j);  // (1/2) <dphi/dx | dphi/dx>
                     }
+                    std::cout << "kin_energy: " << kin_energy << std::endl;
+
+                    Function<T, NDIM> v_l = calculate_HFPotential(world, V, functions, functions[j], twoBody_op);
                 
-                    double pot_energy = inner(functions[i], V * functions[j]); // <phi|V|phi>
-                    ///VHF[function[j])
+                    double pot_energy = inner(functions[i], v_l); // <phi|V|phi>
+                    std::cout << "pot_energy: " << pot_energy << std::endl;
 
                     H(i, j) = kin_energy + pot_energy; // Hamiltonian matrix
                 }
@@ -277,6 +267,7 @@ class HartreeFock {
             Tensor<T> evals;
             // sygvp is a function to solve the generalized eigenvalue problem HU = SUW where S is the overlap matrix and W is the diagonal matrix of eigenvalues of H
             // The eigenvalues are stored in evals and the eigenvectors are stored in U
+            
             sygvp(world, H, overlap, 1, U, evals);
             
             diag_matrix.fill(0.0);
