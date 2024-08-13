@@ -67,36 +67,6 @@ void plot2D(const char* filename, const Function<T, NDIM>& f) {
 }
 
 template <typename T, std::size_t NDIM>
-void plot3D(const char* filename, const Function<T, NDIM>& f) {
-    Vector<T, NDIM> topleftfront{}, toprightfront{}, bottomleftfront{}, topleftback{}, toprightback{}, bottomleftback{};
-    topleftfront[0] = -L;
-    topleftfront[1] = -L;
-    topleftfront[2] = -L;
-
-    toprightfront[0] = L;
-    toprightfront[1] = -L;
-    toprightfront[2] = -L;
-
-    bottomleftfront[0] = -L;
-    bottomleftfront[1] = L;
-    bottomleftfront[2] = -L;
-
-    topleftback[0] = -L;
-    topleftback[1] = -L;
-    topleftback[2] = L;
-
-    toprightback[0] = L;
-    toprightback[1] = -L;
-    toprightback[2] = L;
-
-    bottomleftback[0] = -L;
-    bottomleftback[1] = L;
-    bottomleftback[2] = L;
-
-    plot_volume(filename, 401, topleftfront, toprightfront, bottomleftfront, topleftback, toprightback, bottomleftback, f);
-}
-
-template <typename T, std::size_t NDIM>
 void plot_volume(const char* filename, int npt,
                  const Vector<double, NDIM>& topleftfront, const Vector<double, NDIM>& toprightfront, const Vector<double, NDIM>& bottomleftfront, 
                  const Vector<double, NDIM>& topleftback, const Vector<double, NDIM>& toprightback, const Vector<double, NDIM>& bottomleftback, 
@@ -138,6 +108,36 @@ void plot_volume(const char* filename, int npt,
         fclose(file);
     }
     world.gop.fence();
+}
+
+template <typename T, std::size_t NDIM>
+void plot3D(const char* filename, const Function<T, NDIM>& f) {
+    Vector<T, NDIM> topleftfront{}, toprightfront{}, bottomleftfront{}, topleftback{}, toprightback{}, bottomleftback{};
+    topleftfront[0] = -L;
+    topleftfront[1] = -L;
+    topleftfront[2] = -L;
+
+    toprightfront[0] = L;
+    toprightfront[1] = -L;
+    toprightfront[2] = -L;
+
+    bottomleftfront[0] = -L;
+    bottomleftfront[1] = L;
+    bottomleftfront[2] = -L;
+
+    topleftback[0] = -L;
+    topleftback[1] = -L;
+    topleftback[2] = L;
+
+    toprightback[0] = L;
+    toprightback[1] = -L;
+    toprightback[2] = L;
+
+    bottomleftback[0] = -L;
+    bottomleftback[1] = L;
+    bottomleftback[2] = L;
+
+    plot_volume(filename, 41, topleftfront, toprightfront, bottomleftfront, topleftback, toprightback, bottomleftback, f);
 }
 
 
