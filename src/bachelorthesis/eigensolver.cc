@@ -113,6 +113,8 @@ int main(int argc, char** argv) {
         plot1D("potential.dat", V);
     else if (NDIM == 2)
         plot2D("potential2D.dat", V);
+    else if (NDIM == 3)
+        plot3D("potential3D.dat", V);
 
     
     //--------------------------------------------------------------------------------//
@@ -162,6 +164,8 @@ int main(int argc, char** argv) {
             plot1D(filename, y[i] + en); 
         else if (NDIM == 2)
             plot2D(filename, y[i]);
+        else if (NDIM == 3)
+            plot3D(filename, y[i]);
     }
 
 
