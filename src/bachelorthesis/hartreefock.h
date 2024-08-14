@@ -192,15 +192,25 @@ class HartreeFock {
                 for (int i = 0; i < eigenfunctions.size(); i++) {
                     Function<T, NDIM> fock = calculate_Fock(world, V, fock_functions, eigenfunctions[i], twoBody_op);
                     fock_operators.push_back(fock);
+
+                    double wert = fock.norm2();
+                    std::cout << "Auswertung fock_operator: " << wert << std::endl;
+
                 }
+                std::cout << "Size Fock_operator: " << fock_operators.size() << std::endl;
 
                 std::vector<double> error;
                 std::vector<Function<T, NDIM>> new_eigenfunctions;
                 // optimize each eigenfunction
                 for (int i = 0; i < fock_operators.size(); i++) {
                     std::cout << "Evals: " << evals[i] << std::endl;
+                    // PROBLEM: EVALS IS NOT NEGATIVE FOR INITIAL GUESSES
                     SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*evals[i]), 0.001, 1e-7); 
                     Function<T, NDIM> new_function = - 2.0 * op(fock_operators[i]);
+
+                    double wert = new_function.norm2();
+                    std::cout << "Auswertung function: " << wert << std::endl;
+
 
                     // calculate the residual
                     Function<T, NDIM> residual = eigenfunctions[i] - new_function;
@@ -210,9 +220,11 @@ class HartreeFock {
                     error.push_back(err);
                     new_eigenfunctions.push_back(new_function);
                 }
+                std::cout << "Size New_eigenfunctions: " << new_eigenfunctions.size() << std::endl;
+                double wert = new_eigenfunctions[0].norm2();
+                std::cout << "Auswertung: " << wert << std::endl;
 
-                eigenfunctions = new_eigenfunctions;
-                diagonalized = diagonalize(world, eigenfunctions, V, twoBody_op);
+                diagonalized = diagonalize(world, new_eigenfunctions, V, twoBody_op);
                 evals = diagonalized.first;
                 fock_functions = diagonalized.second;
 
