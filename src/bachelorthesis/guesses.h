@@ -176,8 +176,7 @@ class GuessGenerator {
             while (count < num){
                 orders.fill(0);     // array to store the orders of the monomials
                 orders[0] = order;    // set the order of the first monomial 
-                std::cout << "Order of the first monomial:" << std::endl;
-                std::cout << orders[0] << std::endl;
+                std::cout << "Order of the first monomial: " << orders[0] << std::endl;
                 while (true) {
                     GuessFunctor guessfunction(orders, V);
                     Function<T, NDIM> guess_function = FunctionFactory<T, NDIM>(world).functor(guessfunction);  // create guess function
@@ -217,10 +216,10 @@ class GuessGenerator {
                     }
 
                     // find the first non-zero order 
-                    while (first_nonzero < NDIM && orders[first_nonzero] != 0) {
+                    while (first_nonzero < NDIM && orders[first_nonzero] == 0) {
                         first_nonzero++;
-                        std::cout << "First non-zero: " << first_nonzero << std::endl;
                     }
+                    std::cout << "First non-zero: " << first_nonzero << std::endl;
                     
                     // if the first non-zero is the last element, break
                     if (first_nonzero >= NDIM-1) {
