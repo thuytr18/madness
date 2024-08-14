@@ -303,15 +303,16 @@ class PotentialGenerator {
 };
 
 template<typename T, std::size_t NDIM>
-class HydrogenPotentialGenerator {
+class HyperbolicPotentialGenerator {
     public:
-        class HydrogenPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+        class HyperbolicPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
             public:
-                HydrogenPotentialFunctor();
+                HyperbolicPotentialFunctor();
 
-                explicit HydrogenPotentialFunctor(const Vector<T, NDIM>& R): R(R) {
+                explicit HyperbolicPotentialFunctor(double a, const Vector<T, NDIM>& R): a(a), R(R) {
                 }
 
+                double a;
                 const Vector<T, NDIM> R;
 
                 /// explicit construction
@@ -325,19 +326,19 @@ class HydrogenPotentialGenerator {
                     
                     sum = sqrt(sum);
 
-                    double potential = -2 / sum;
+                    double potential = -a / sum;
 
                     return potential; 
                 }
             };
 
-            explicit HydrogenPotentialGenerator(World& world) : world(world) {
+            explicit HyperbolicPotentialGenerator(World& world) : world(world) {
             }
 
             // Function to create potential
-            Function<T, NDIM> create_hydrogenpotential(const Vector<T,NDIM>& R){
-                HydrogenPotentialFunctor hydrogen_potential_function(R);
-                return FunctionFactory<T, NDIM>(world).functor(hydrogen_potential_function);  // create potential function
+            Function<T, NDIM> create_hyperbolicpotential(double a, const Vector<T,NDIM>& R){
+                HyperbolicPotentialFunctor hyperbolic_potential_function(a, R);
+                return FunctionFactory<T, NDIM>(world).functor(hyperbolic_potential_function);  // create potential function
             }
 
     private:
