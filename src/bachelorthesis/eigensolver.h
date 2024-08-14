@@ -184,7 +184,13 @@ class Eigensolver {
                 
                 char filename[256];
                 snprintf(filename, 256, "phi-%1d-%1d.dat", N, iter);
-                plot1D(filename,phi);
+                if (NDIM == 1)
+                    plot1D(filename,phi);
+                else if (NDIM == 2)
+                    plot2D(filename,phi);
+                else if (NDIM == 3)
+                    plot3D(filename,phi);
+                
                 
                 // Energy cant be positiv
                 // shift potential
@@ -233,6 +239,8 @@ class Eigensolver {
                 plot1D(filename, phi);
             else if (NDIM == 2)
                 plot2D(filename,phi);
+            else if (NDIM == 3)
+                plot3D(filename,phi);
 
             if (count_shift != 0) {
                 std::cout << "Potential was shifted " << count_shift << " times" << std::endl;
