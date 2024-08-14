@@ -55,11 +55,12 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
 
     // Generator for Hdyrogen atom
-    HydrogenPotentialGenerator<double, NDIM> hydrogen_potential_generator(world);    
+    HyperbolicPotentialGenerator<double, NDIM> hyperbolic_potential_generator(world);    
     Vector<double, NDIM> R{};
     R.fill(0.0);
 
-    Function<double, NDIM> V = hydrogen_potential_generator.create_hydrogenpotential(R);
+    //Function<double, NDIM> V = hyperbolic_potential_generator.create_hyperbolicpotential(2, R);
+    Function<double, NDIM> V = hyperbolic_potential_generator.create_hyperbolicpotential(4, R);
 
     plot3D("potential.dat", V);
 
