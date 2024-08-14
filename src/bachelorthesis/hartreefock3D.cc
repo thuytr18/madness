@@ -1,6 +1,7 @@
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <iterator>
 #include <madness/constants.h>
 #include <madness/mra/funcdefaults.h>
 #include <madness/mra/function_factory.h>
@@ -16,6 +17,7 @@
 #include <madness/world/world.h>
 #include <madness/world/worldmpi.h>
 #include <madness/tensor/tensor.h>
+#include <ostream>
 #include <utility>
 #include <vector>
 #include "hartreefock.h"
@@ -36,13 +38,13 @@ int main(int argc, char** argv) {
 
     //-------------------------------------------------------------------------------//
     const double thresh = 1e-6; // Threshold
-    constexpr int max_iter = 3; // Maximum number of iterations
+    constexpr int max_iter = 5; // Maximum number of iterations
     constexpr int num_levels = 1; // Number of levels
     constexpr int NDIM = 3; // Dimension
 
     //-------------------------------------------------------------------------------//
     // Create the operator
-    SeparatedConvolution<double, NDIM> op = CoulombOperator(world, 1.0, 1e-6);
+    SeparatedConvolution<double, NDIM> op = CoulombOperator(world, 0.001, 1e-4);
     //-------------------------------------------------------------------------------//
     // Set the defaults
 
@@ -86,7 +88,17 @@ int main(int argc, char** argv) {
     HartreeFock<double, NDIM> hartree_fock_solver(world);
 
     // Solve the Hartree-Fock equation
+    std::cout << "Hartree Fock with given initial guess" << std::endl;
     std::vector<Function<double, NDIM>> eigenfunctions = hartree_fock_solver.solve(V, guesses, max_iter, op);
+
+    // std::cout << "Hartree Fock with guesses depending on potential" << std::endl;
+    // std::vector<Function<double, NDIM>> eigenfunctions_1 = hartree_fock_solver.solve(V, num_levels, max_iter, op);
+
+    for (int i = 0; i < eigenfunctions.size(); i++) {
+        char filename[512];
+        snprintf(filename, 512, "Psi_%1d.dat", i);
+        plot3D(filename, eigenfunctions[i]);
+    }
 
     // Finalizing
     if (world.rank() == 0) printf("finished at time %.1f\n", wall_time());
