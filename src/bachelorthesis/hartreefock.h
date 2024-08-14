@@ -46,6 +46,8 @@ class HartreeFock {
                     plot1D(filename, guesses[i]);
                 else if (NDIM == 2)
                     plot2D(filename, guesses[i]);
+                else if (NDIM == 3)
+                    plot3D(filename, guesses[i]);
             }
 
             // store the eigenfunctions in vector eigenfunctions
@@ -173,12 +175,17 @@ class HartreeFock {
                 std::vector<Function<T, NDIM>> eigenfunctions = fock_functions;
 
                 // plot the eigenfunctions
-                // for (int i = 0; i < eigenfunctions.size(); i++) {
-                //     // plot the guess functions
-                //     char filename[256];
-                //     snprintf(filename, 256, "phi-%1d-%1d.dat", i, iter);
-                //     plot1D(filename, eigenfunctions[i]);
-                // }
+                for (int i = 0; i < eigenfunctions.size(); i++) {
+                    // plot the guess functions
+                    char filename[256];
+                    snprintf(filename, 256, "phi-%1d-%1d.dat", i, iter);
+                    if(NDIM == 1)
+                        plot1D(filename, eigenfunctions[i]);
+                    else if (NDIM == 2)
+                        plot2D(filename, eigenfunctions[i]);
+                    else if (NDIM == 3)
+                        plot3D(filename, eigenfunctions[i]);
+                }
 
                 // calculate the Fock operator for each eigenfunction
                 std::vector<Function<T, NDIM>> fock_operators;
@@ -191,7 +198,7 @@ class HartreeFock {
                 std::vector<Function<T, NDIM>> new_eigenfunctions;
                 // optimize each eigenfunction
                 for (int i = 0; i < fock_operators.size(); i++) {
-
+                    std::cout << "Evals: " << evals[i] << std::endl;
                     SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*evals[i]), 0.001, 1e-7); 
                     Function<T, NDIM> new_function = - 2.0 * op(fock_operators[i]);
 
@@ -236,7 +243,7 @@ class HartreeFock {
 
             for(int i = 0; i < num; i++) {
                 auto energy1 = energy(world, functions[i], V);
-                std::cout << "Energy" << energy1 << std::endl;
+                std::cout << "Energy: " << energy1 << std::endl;
                 for(int j = 0; j < num; j++) {
                     double kin_energy = 0.0;
                     for (int axis = 0; axis < NDIM; axis++) {
