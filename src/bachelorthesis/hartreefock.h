@@ -204,7 +204,9 @@ class HartreeFock {
                 // optimize each eigenfunction
                 for (int i = 0; i < fock_operators.size(); i++) {
                     std::cout << "Evals: " << evals[i] << std::endl;
-                    // PROBLEM: EVALS IS NOT NEGATIVE FOR INITIAL GUESSES
+                    if (evals[i] < 0) {
+                        evals[i] = -2.0;
+                    }
                     SeparatedConvolution<T,NDIM> op = BSHOperator<NDIM>(world, sqrt(-2*evals[i]), 0.001, 1e-7); 
                     Function<T, NDIM> new_function = - 2.0 * op(fock_operators[i]);
 
