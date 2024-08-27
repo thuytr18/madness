@@ -303,13 +303,13 @@ class PotentialGenerator {
 };
 
 template<typename T, std::size_t NDIM>
-class HyperbolicPotentialGenerator {
+class NuclearPotentialGenerator {
     public:
-        class HyperbolicPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
+        class NuclearPotentialFunctor: public FunctionFunctorInterface<T, NDIM> {
             public:
-                HyperbolicPotentialFunctor();
+                NuclearPotentialFunctor();
 
-                explicit HyperbolicPotentialFunctor(double a, const Vector<T, NDIM>& R): a(a), R(R) {
+                explicit NuclearPotentialFunctor(double a, const Vector<T, NDIM>& R): a(a), R(R) {
                 }
 
                 double a;
@@ -332,13 +332,13 @@ class HyperbolicPotentialGenerator {
                 }
             };
 
-            explicit HyperbolicPotentialGenerator(World& world) : world(world) {
+            explicit NuclearPotentialGenerator(World& world) : world(world) {
             }
 
             // Function to create potential
-            Function<T, NDIM> create_hyperbolicpotential(double a, const Vector<T,NDIM>& R){
-                HyperbolicPotentialFunctor hyperbolic_potential_function(a, R);
-                return FunctionFactory<T, NDIM>(world).functor(hyperbolic_potential_function);  // create potential function
+            Function<T, NDIM> create_nuclearpotential(double a, const Vector<T,NDIM>& R){
+                NuclearPotentialFunctor nuclear_potential_function(a, R);
+                return FunctionFactory<T, NDIM>(world).functor(nuclear_potential_function);  // create potential function
             }
 
     private:
