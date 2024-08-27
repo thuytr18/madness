@@ -104,10 +104,10 @@ class HarmonicGuessGenerator {
                     }
 
                     // find the first non-zero order 
-                    while (first_nonzero < NDIM && orders[first_nonzero] != 0) {
+                    while (first_nonzero < NDIM && orders[first_nonzero] == 0) {
                         first_nonzero++;
-                        std::cout << "First non-zero: " << first_nonzero << std::endl;
                     }
+                    std::cout << "First non-zero: " << first_nonzero << std::endl;
                     
                     // if the first non-zero is the last element, break
                     if (first_nonzero >= NDIM-1) {
