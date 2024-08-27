@@ -235,9 +235,12 @@ class HartreeFock {
                     max_err = std::max(max_err, i);
                 }
 
-                if (world.rank() == 0)
+                if (world.rank() == 0) {
                     print("iteration", iter, "error", max_err);
-
+                    for (int i = 0; i < evals.size(); i++) {
+                        print("evals", i, "energy", evals[i]);
+                    }
+                }
                 if (max_err < 1e-6) break;
             }
 
