@@ -55,12 +55,12 @@ int main(int argc, char** argv) {
     //-------------------------------------------------------------------------------//
 
     // Generator for Hdyrogen atom
-    HyperbolicPotentialGenerator<double, NDIM> hyperbolic_potential_generator(world);    
+    NuclearPotentialGenerator<double, NDIM> hyperbolic_potential_generator(world);    
     Vector<double, NDIM> R{};
     R.fill(0.0);
 
     //Function<double, NDIM> V = hyperbolic_potential_generator.create_hyperbolicpotential(2, R);
-    Function<double, NDIM> V = hyperbolic_potential_generator.create_hyperbolicpotential(4, R);
+    Function<double, NDIM> V = hyperbolic_potential_generator.create_nuclearpotential(4, R);
 
     plot3D("potential.dat", V);
 
@@ -83,6 +83,18 @@ int main(int argc, char** argv) {
     Function<double, NDIM> initial_guess = gaussian_potential_generator.create_gaussianpotential(a, mu, sigma);
     plot3D("guess.dat", initial_guess);
     guesses.push_back(initial_guess);
+
+    Tensor<double> sigma2(NDIM, NDIM); // Create a covariance matrix
+    for (int i = 0; i < NDIM; ++i) {
+        for (int j = 0; j < NDIM; ++j) {
+            sigma2(i, j) = (i == j) ? 5.0 : 0.0; // Set the diagonal elements to 1
+        }
+    }
+
+    Function<double, NDIM> initial_guess2 = gaussian_potential_generator.create_gaussianpotential(a, mu, sigma2);
+    guesses.push_back(initial_guess2);
+
+
 
     //-------------------------------------------------------------------------------//
     // Hartree-Fock
