@@ -37,7 +37,7 @@ class HarmonicPotentialGenerator {
                         potential += 0.5 * (r[i] * r[i]); 
                     }
 
-                    return potential;  
+                    return potential - potential_shift;  
                 }
         };
 
