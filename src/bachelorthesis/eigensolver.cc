@@ -53,9 +53,9 @@ int main(int argc, char** argv) {
     // Create the potential generator
 
     //HarmonicPotentialGenerator<double, NDIM> potential_generator(world);                // Generator for harmonic potential
-    GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
+    //GaussianPotentialGenerator<double, NDIM> gaussian_potential_generator(world);       // Generator for gaussian potential
     //DoubleWellPotentialGenerator<double, NDIM> doublewell_potential_generator(world);   // Generator for double well potential
-    //ExponentialPotentialGenerator<double, NDIM> exponential_potential_generator(world); // Generator for exponential potential
+    ExponentialPotentialGenerator<double, NDIM> exponential_potential_generator(world); // Generator for exponential potential
     //MorsePotentialGenerator<double, NDIM> morse_potential_generator(world);             // Generator for exponential potential
 
     //-------------------------------------------------------------------------------//
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(-10, mu, sigma);    // Create the gaussian potential
+    //Function<double, NDIM> V = gaussian_potential_generator.create_gaussianpotential(-10, mu, sigma);    // Create the gaussian potential
 
     // Parameters mu1 and sigma1 for second gaussian potential
     Vector<double, NDIM> mu1{};
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     
     //Function<double, NDIM> V = doublewell_potential_generator.create_doublewellpotential(-5, mu, sigma, -5, mu1, sigma1); // Create the double well potential
 
-    //Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(-10.0, 1); // Create the exponential potential
+    Function<double, NDIM> V = exponential_potential_generator.create_exponentialpotential(-10.0, 0.5); // Create the exponential potential
 
     //Function<double, NDIM> V = morse_potential_generator.create_morsepotential(5.0, 1.0, 0.75); // Create the morse potential
  
