@@ -36,9 +36,9 @@
 
 
 #include <madness/world/worldmem.h>
-#include<madness.h>
-#include<madness/chem/SCF.h>
-#include<madchem.h>
+#include <madness.h>
+#include <madness/chem/SCF.h>
+#include <madchem.h>
 
 #if defined(__has_include)
 #  if __has_include(<filesystem>)
@@ -138,7 +138,6 @@ tensorT Q2(const tensorT& s) {
     return Q;
 }
 
-}// namespace madness
 // void SCF::output_scf_info_schema(const std::map<std::string, double> &vals,
 //                                  const tensorT &dipole_T) const {
 //     nlohmann::json j = {};
@@ -212,7 +211,7 @@ scf_data::scf_data() : iter(0) {
 
 
 void scf_data::to_json(json &j) const {
-    ::print("SCF DATA TO JSON");
+    madness::print("SCF DATA TO JSON");
 
     j["scf_e_data"] = json();
     j["scf_e_data"]["iterations"] = iter;
@@ -593,8 +592,11 @@ vecfuncT SCF::project_ao_basis_only(World& world, const AtomicBasisSet& aobasis,
     return ao;
 }
 
-void SCF::analyze_vectors(World& world, const vecfuncT& mo, const tensorT& occ,
-                          const tensorT& energy, const std::vector<int>& set) {
+void SCF::analyze_vectors(World& world, const vecfuncT& mo,
+            const vecfuncT& ao, double vtol,
+            const Molecule& molecule, const int print_level,
+            const AtomicBasisSet& aobasis, const tensorT& occ,
+            const tensorT& energy, const std::vector<int>& set) {
     START_TIMER(world);
     PROFILE_MEMBER_FUNC(SCF);
     tensorT Saomo = matrix_inner(world, ao, mo);
@@ -625,7 +627,8 @@ void SCF::analyze_vectors(World& world, const vecfuncT& mo, const tensorT& occ,
     for (long i = 0; i < nmo; ++i) {
         size_t ncoeffi = mo[i].size();
         ncoeff += ncoeffi;
-        if (world.rank() == 0 and (param.print_level() > 1)) {
+        // if (world.rank() == 0 and (param.print_level() > 1)) {
+        if (world.rank() == 0 and (print_level > 1)) {
             printf("  MO%4ld : ", i);
             if (set.size())
                 printf("set=%d : ", set[i]);
@@ -2356,14 +2359,15 @@ void SCF::solve(World& world) {
     }
 
     if (param.nwfile() == "none") {
-        analyze_vectors(world, amo, aocc, aeps);
+        analyze_vectors(world, amo, ao, vtol, molecule, param.print_level(), aobasis, aocc, aeps);
         if (param.nbeta() != 0 && !param.spin_restricted()) {
             if (world.rank() == 0 and (param.print_level() > 1))
                 print("Analysis of beta MO vectors");
 
-            analyze_vectors(world, bmo, bocc, beps);
+            analyze_vectors(world, bmo, ao, vtol, molecule, param.print_level(), aobasis, bocc, beps);
         }
     }
 
 }        // end solve function
 
+} // namespace madness
